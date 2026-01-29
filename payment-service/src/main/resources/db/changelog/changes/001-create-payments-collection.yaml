@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-payments-collection
+      author: kiril stoliar
+      changes:
+        - mongoDb:
+            collectionName: payments
+        - createIndex:
+            collectionName: payments
+            indexName: idx_order_id
+            keys: { order_id: 1 }
+        - createIndex:
+            collectionName: payments
+            indexName: idx_user_id
+            keys: { user_id: 1 }
+        - createIndex:
+            collectionName: payments
+            indexName: idx_status
+            keys: { status: 1 }
+        - createIndex:
+            collectionName: payments
+            indexName: idx_timestamp
+            keys: { timestamp: -1 }
+        - createIndex:
+            collectionName: payments
+            indexName: idx_order_user
+            keys: { order_id: 1, user_id: 1 }
+            options:
+              unique: false
+              background: true

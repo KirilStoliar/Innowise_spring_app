@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 public class PaymentResponse {
     
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private Long id;
+    private String id;
     
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Long orderId;

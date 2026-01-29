@@ -54,7 +54,7 @@ public class PaymentController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(
-            @Parameter(description = "Payment ID", required = true) @PathVariable Long id) {
+            @Parameter(description = "Payment ID", required = true) @PathVariable String id) {
         
         log.info("Getting payment by id: {}", id);
         PaymentResponse payment = paymentService.getPaymentById(id);
@@ -114,7 +114,7 @@ public class PaymentController {
         List<PaymentResponse> payments = paymentService.getPaymentsByCriteria(userId, orderId, status);
         return ResponseEntity.ok(ApiResponse.success(payments, "Payments retrieved successfully"));
     }
-    
+
     @Operation(summary = "Get total sum for user", description = "Get total payment amount for a user within date range")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Total sum calculated successfully")
@@ -122,28 +122,30 @@ public class PaymentController {
     @GetMapping("/user/{userId}/total")
     public ResponseEntity<ApiResponse<BigDecimal>> getTotalSumByUserId(
             @Parameter(description = "User ID", required = true) @PathVariable Long userId,
-            @Parameter(description = "Start date (ISO format). Example: 2025-12-25T10%3A00%3A00")
+            @Parameter(description = "Start date (ISO format). Example: 2026-01-28T10:00:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @Parameter(description = "End date (ISO format). Example: 2025-12-25T10%3A00%3A00")
+            @Parameter(description = "End date (ISO format). Example: 2026-01-28T18:00:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-        
+
         log.info("Calculating total sum for user {} from {} to {}", userId, startDate, endDate);
+
         BigDecimal totalSum = paymentService.getTotalSumByUserIdAndDateRange(userId, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success(totalSum, "Total sum calculated successfully"));
     }
-    
+
     @Operation(summary = "Get total sum for all users", description = "Get total payment amount for all users within date range")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Total sum calculated successfully")
     })
     @GetMapping("/total")
     public ResponseEntity<ApiResponse<BigDecimal>> getTotalSum(
-            @Parameter(description = "Start date (ISO format). Example: 2025-12-25T10%3A00%3A00")
+            @Parameter(description = "Start date (ISO format). Example: 2026-01-28T10:00:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @Parameter(description = "End date (ISO format). Example: 2025-12-25T10%3A00%3A00")
+            @Parameter(description = "End date (ISO format). Example: 2026-01-28T18:00:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-        
+
         log.info("Calculating total sum for all users from {} to {}", startDate, endDate);
+
         BigDecimal totalSum = paymentService.getTotalSumByDateRange(startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success(totalSum, "Total sum calculated successfully"));
     }

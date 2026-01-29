@@ -9,13 +9,19 @@ import org.mapstruct.factory.Mappers;
 
 @Mapper(componentModel = "spring")
 public interface PaymentMapper {
-    
+
     PaymentMapper INSTANCE = Mappers.getMapper(PaymentMapper.class);
-    
+
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", ignore = true) // Статус определяется внешним API
-    @Mapping(target = "timestamp", ignore = true) // Устанавливается автоматически
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "timestamp", ignore = true)
     Payment toEntity(PaymentRequest paymentRequest);
-    
+
+    @Mapping(source = "id", target = "id")
+    @Mapping(source = "orderId", target = "orderId")
+    @Mapping(source = "userId", target = "userId")
+    @Mapping(source = "status", target = "status")
+    @Mapping(source = "timestamp", target = "timestamp")
+    @Mapping(source = "paymentAmount", target = "paymentAmount")
     PaymentResponse toResponse(Payment payment);
 }

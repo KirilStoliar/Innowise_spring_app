@@ -329,20 +329,4 @@ public class OrderService {
             throw new ServiceUnavailableException("Failed to get user information", e);
         }
     }
-
-//    private void updateOrderStatusFromKafka(Long orderId, String paymentStatus) {
-//        Order order = orderRepository.findByIdAndNotDeleted(orderId)
-//                .orElseThrow(() -> new EntityNotFoundException("Order not found with id: " + orderId));
-//
-//        if ("COMPLETED".equals(paymentStatus) && order.getStatus() == Order.OrderStatus.PENDING) {
-//            order.setStatus(Order.OrderStatus.CONFIRMED);
-//            orderRepository.save(order);
-//            log.info("Order {} status updated to CONFIRMED via Kafka", orderId);
-//        } else if (("FAILED".equals(paymentStatus) || "DECLINED".equals(paymentStatus))
-//                && order.getStatus() == Order.OrderStatus.PENDING) {
-//            order.setStatus(Order.OrderStatus.CANCELLED);
-//            orderRepository.save(order);
-//            log.info("Order {} status updated to CANCELLED via Kafka", orderId);
-//        }
-//    }
 }

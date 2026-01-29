@@ -5,6 +5,7 @@ import com.stoliar.dto.PaymentRequest;
 import com.stoliar.dto.PaymentResponse;
 import com.stoliar.entity.enums.PaymentStatus;
 import com.stoliar.service.PaymentService;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -37,6 +38,7 @@ class PaymentControllerTest {
     @Test
     void createPayment_ValidRequest_ReturnsCreated() throws Exception {
         // Given
+        String paymentId = new ObjectId().toString();
         PaymentRequest request = PaymentRequest.builder()
                 .orderId(1L)
                 .userId(1L)
@@ -44,7 +46,7 @@ class PaymentControllerTest {
                 .build();
 
         PaymentResponse response = PaymentResponse.builder()
-                .id(1L)
+                .id(paymentId)
                 .orderId(1L)
                 .userId(1L)
                 .status(PaymentStatus.COMPLETED)
@@ -60,7 +62,7 @@ class PaymentControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.id").value(1L));
+                .andExpect(jsonPath("$.data.id").value(paymentId));
     }
 
     @Test
@@ -77,5 +79,28 @@ class PaymentControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getPaymentById_Exists_ReturnsPayment() throws Exception {
+        // Given
+        String paymentId = new ObjectId().toString();
+        PaymentResponse response = PaymentResponse.builder()
+                .id(paymentId)
+                .orderId(1L)
+                .userId(1L)
+                .status(PaymentStatus.COMPLETED)
+                .timestamp(LocalDateTime.now())
+                .paymentAmount(new BigDecimal("100.00"))
+                .build();
+
+        when(paymentService.getPaymentById(paymentId)).thenReturn(response);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/{id}", paymentId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(paymentId));
     }
 }
