@@ -15,4 +15,5 @@ public interface AuthService {
     TokenResponse refreshToken(String refreshToken);
     TokenValidationResponse validateToken(String token);
     ResponseEntity<ApiResponse<Void>> deleteUserForRollback(Long id, String serviceName);
+    ResponseEntity<ApiResponse<Void>> deleteUserAsAdmin(Long credentialsId, String adminToken);
 }

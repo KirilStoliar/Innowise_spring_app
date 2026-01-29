@@ -92,15 +92,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(tokenResponse, "Token refreshed successfully"));
     }
 
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(index);
-        }
-        return null;
-    }
-
-    @Operation(summary = "Delete user for rollback", description = "Delete user by ID (for internal use by API Gateway)")
+    @Operation(summary = "Delete user for rollback (only test, it use inside service)", description = "Delete user by ID (for internal use by API Gateway)")
     @DeleteMapping("/internal/users/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUserForRollback(
             @PathVariable Long id,
@@ -139,5 +131,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to delete user: " + e.getMessage()));
         }
+    }
+
+    private String getTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(index);
+        }
+        return null;
     }
 }

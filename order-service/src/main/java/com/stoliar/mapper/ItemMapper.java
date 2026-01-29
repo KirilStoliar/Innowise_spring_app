@@ -15,22 +15,17 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface ItemMapper {
 
-    // Маппинг OrderItem -> OrderItemDto
     @Mapping(target = "itemId", source = "item.id")
     @Mapping(target = "itemName", source = "item", qualifiedByName = "mapItemName")
     @Mapping(target = "itemPrice", source = "item", qualifiedByName = "mapItemPrice")
     OrderItemDto toDto(OrderItem orderItem);
 
-    // Маппинг Item -> ItemDto (для ответа с id)
     ItemDto toDto(Item item);
 
-    // Маппинг списка Item -> List<ItemDto>
     List<ItemDto> toDtoList(List<Item> items);
 
-    // Маппинг ItemCreateDto -> Item (для создания)
     Item toEntity(ItemCreateDto itemCreateDto);
 
-    // Маппинг Item -> ItemCreateDto (для ответа при создании)
     ItemCreateDto toCreateDto(Item item);
 
     @Named("mapItemName")

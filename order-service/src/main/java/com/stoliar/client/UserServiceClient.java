@@ -27,53 +27,38 @@ public class UserServiceClient {
     private String userServiceUrl;
 
     @CircuitBreaker(name = "userService", fallbackMethod = "getUserByIdFallback")
-    @Retry(name = "userService", fallbackMethod = "getUserByIdFallback")
+    @Retry(name = "userService")
     public UserInfoDto getUserById(Long userId) {
+
         log.info("Calling User Service for userId: {}", userId);
 
         String url = userServiceUrl + "/api/v1/users/" + userId;
 
         HttpHeaders headers = createServiceHeaders();
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        try {
-            // Используем UserApiResponse вместо UserInfoDto
-            ResponseEntity<UserApiResponse> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    UserApiResponse.class
-            );
+        ResponseEntity<UserApiResponse> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                entity,
+                UserApiResponse.class
+        );
 
-            log.info("Response status: {}", response.getStatusCode());
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                UserApiResponse apiResponse = response.getBody();
-                log.info("API Response success: {}, message: {}",
-                        apiResponse.isSuccess(), apiResponse.getMessage());
-
-                if (apiResponse.isSuccess() && apiResponse.getData() != null) {
-                    UserInfoDto userInfo = apiResponse.getData();
-                    log.info("Received user info: ID={}, Email={}, Name={}",
-                            userInfo.getId(), userInfo.getEmail(), userInfo.getName());
-                    return userInfo;
-                } else {
-                    log.error("User service returned unsuccessful response: {}", apiResponse.getMessage());
-                    // Вместо RuntimeException возвращаем fallback
-                    return createFallbackUser(userId);
-                }
-            } else {
-                log.error("Failed to get user info. Status: {}", response.getStatusCode());
-                return createFallbackUser(userId);
-            }
-        } catch (Exception e) {
-            log.error("Error calling user service: {}", e.getMessage(), e);
-            return createFallbackUser(userId);
+        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            throw new IllegalStateException("Invalid response from User Service");
         }
+
+        UserApiResponse apiResponse = response.getBody();
+
+        if (!apiResponse.isSuccess() || apiResponse.getData() == null) {
+            throw new IllegalStateException("User service returned unsuccessful response");
+        }
+
+        return apiResponse.getData();
     }
 
     @CircuitBreaker(name = "userService", fallbackMethod = "getUserByEmailFallback")
-    @Retry(name = "userService", fallbackMethod = "getUserByEmailFallback")
+    @Retry(name = "userService")
     public UserInfoDto getUserByEmail(String email) {
         log.info("Calling User Service for email: {}", email);
 
@@ -116,9 +101,9 @@ public class UserServiceClient {
         return createFallbackUser(email);
     }
 
-    private UserInfoDto createFallbackUser(Long userId) {
+    private UserInfoDto createFallbackUser(Long ignoredUserId) {
         UserInfoDto fallback = new UserInfoDto();
-        fallback.setId(userId);
+        fallback.setId(-1L);
         fallback.setEmail("service@unavailable.com");
         fallback.setName("Service");
         fallback.setSurname("Temporarily Unavailable");

@@ -10,21 +10,22 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
-public class LoggingFilter implements GatewayFilter {
+public class RequestLoggingFilter implements GatewayFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-
         ServerHttpRequest request = exchange.getRequest();
 
-        String method = request.getMethod() != null ? request.getMethod().name() : "UNKNOWN";
-        String path = request.getURI().getRawPath();
-
-        log.info("➡️ {} {}", method, path);
+        log.info("INCOMING REQUEST: {} {}", request.getMethod(), request.getURI());
+        log.info("ALL HEADERS:");
+        request.getHeaders().forEach((key, value) ->
+            log.info("    {}: {}", key, value));
 
         return chain.filter(exchange)
-                .doOnSuccess(aVoid ->
-                        log.info("⬅️ Response sent for {} {}", method, path)
-                );
+            .doOnSuccess(v ->
+                log.info("COMPLETED: {} {}", request.getMethod(), request.getURI()))
+            .doOnError(e ->
+                log.error("ERROR: {} {} - {}", request.getMethod(),
+                    request.getURI(), e.getMessage()));
     }
 }

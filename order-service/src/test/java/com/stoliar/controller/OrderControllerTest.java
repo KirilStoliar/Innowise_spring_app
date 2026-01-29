@@ -37,7 +37,7 @@ public class OrderControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private OrderService orderService;
+    private OrderService orderServiceImpl;
 
     @Test
     void createOrder_ValidRequest_ShouldReturnCreated() throws Exception {
@@ -55,7 +55,7 @@ public class OrderControllerTest {
         responseDto.setUserId(1L);
         responseDto.setStatus(Order.OrderStatus.PENDING);
 
-        when(orderService.createOrder(any(OrderCreateDto.class))).thenReturn(responseDto);
+        when(orderServiceImpl.createOrder(any(OrderCreateDto.class))).thenReturn(responseDto);
 
         // Act & Assert
         mockMvc.perform(post("/api/v1/orders")
@@ -74,7 +74,7 @@ public class OrderControllerTest {
         responseDto.setUserId(1L);
         responseDto.setStatus(Order.OrderStatus.PENDING);
 
-        when(orderService.getOrderById(1L)).thenReturn(responseDto);
+        when(orderServiceImpl.getOrderById(1L)).thenReturn(responseDto);
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/orders/1"))
@@ -99,7 +99,7 @@ public class OrderControllerTest {
             2
         );
 
-        when(orderService.getOrdersByUserId(eq(1L), any())).thenReturn(page);
+        when(orderServiceImpl.getOrdersByUserId(eq(1L), any())).thenReturn(page);
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/orders/user/1")
@@ -113,7 +113,7 @@ public class OrderControllerTest {
     @Test
     void deleteOrder_ShouldReturnNoContent() throws Exception {
         // Arrange
-        doNothing().when(orderService).deleteOrder(1L);
+        doNothing().when(orderServiceImpl).deleteOrder(1L);
 
         // Act & Assert
         mockMvc.perform(delete("/api/v1/orders/1"))

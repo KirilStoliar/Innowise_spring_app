@@ -47,13 +47,18 @@ dependencies {
     testImplementation 'io.github.resilience4j:resilience4j-test:2.2.0'
 
     // TestContainers для интеграционных тестов
-    testImplementation 'org.testcontainers:testcontainers:1.19.3'
-    testImplementation 'org.testcontainers:postgresql:1.19.3'
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+    testImplementation platform("org.testcontainers:testcontainers-bom:1.19.8")
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:junit-jupiter'
+
+    // Для локального тестирования
+    testImplementation 'com.h2database:h2'
 
     // Для WebTestClient
-    testImplementation 'io.projectreactor:reactor-test'
-    testImplementation 'org.springframework:spring-webflux'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // WireMock для тестирования HTTP-клиентов
+    testImplementation "org.wiremock:wiremock-standalone:3.6.0"
 
     // Для работы с JSON в тестах
     testImplementation 'com.jayway.jsonpath:json-path:2.9.0'
@@ -64,22 +69,4 @@ dependencies {
 
     // AssertJ
     testImplementation 'org.assertj:assertj-core:3.24.2'
-
-    configurations.all {
-        // Исключаем старые версии WireMock, если они есть
-        exclude group: 'com.github.tomakehurst', module: 'wiremock'
-        exclude group: 'com.github.tomakehurst', module: 'wiremock-jre8'
-        exclude group: 'com.github.tomakehurst', module: 'wiremock-jre8-standalone'
-        exclude group: 'com.github.tomakehurst', module: 'wiremock-standalone'
-
-        // Исключаем старые версии Jetty, которые могут конфликтовать
-        exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-        exclude group: 'org.eclipse.jetty', module: 'jetty-servlet'
-        exclude group: 'org.eclipse.jetty', module: 'jetty-webapp'
-        exclude group: 'org.eclipse.jetty', module: 'jetty-http'
-        exclude group: 'org.eclipse.jetty', module: 'jetty-io'
-        exclude group: 'org.eclipse.jetty', module: 'jetty-util'
-        exclude group: 'org.eclipse.jetty', module: 'jetty-security'
-        exclude group: 'org.eclipse.jetty.http2', module: 'http2-server'
-    }
 }

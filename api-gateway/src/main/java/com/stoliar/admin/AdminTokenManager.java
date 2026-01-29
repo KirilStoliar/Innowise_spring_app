@@ -1,11 +1,14 @@
 package com.stoliar.admin;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
@@ -24,8 +27,8 @@ public class AdminTokenManager {
 
     public AdminTokenManager(WebClient webClient,
                              @Value("${gateway.auth.url:http://auth-service:8081}") String authServiceUrl,
-                             @Value("${gateway-admin.email:admin@example.com}") String adminEmail,
-                             @Value("${gateway-admin.password:admin123}") String adminPassword) {
+                             @Value("${gateway-admin.email}") String adminEmail,
+                             @Value("${gateway-admin.password}") String adminPassword) {
         this.webClient = webClient;
         this.authLoginUrl = authServiceUrl + "/api/v1/auth/login";
         this.adminEmail = adminEmail;
@@ -34,47 +37,102 @@ public class AdminTokenManager {
 
     @EventListener(ApplicationReadyEvent.class)
     public void obtainAdminTokenOnStartup() {
-        log.info("Attempting to obtain admin token from {}", authLoginUrl);
-        try {
-            Map<String, Object> resp = webClient.post()
-                    .uri(authLoginUrl)
-                    .bodyValue(Map.of("email", adminEmail, "password", adminPassword))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .retryWhen(Retry.backoff(5, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
-                    .block();
+        log.info("Obtaining admin token from {}", authLoginUrl);
 
-            if (resp != null) {
-                // try to extract token under common structures:
-                // 1) { "data": { "accessToken": "..." } }
-                // 2) { "accessToken": "..." }
-                String token = null;
-                if (resp.containsKey("data")) {
-                    Object data = resp.get("data");
-                    if (data instanceof Map) {
-                        token = (String) ((Map<?, ?>) data).get("accessToken");
-                    }
-                }
-                if (token == null && resp.containsKey("accessToken")) {
-                    token = (String) resp.get("accessToken");
-                }
-                if (token != null) {
+        obtainAdminTokenReactive()
+                .doOnSuccess(token -> {
                     adminToken.set(token);
-                    log.info("Admin token obtained (length={})", token.length());
-                } else {
-                    log.warn("Admin token not found in response: {}", resp);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to obtain admin token on startup: {}", e.getMessage());
+                    log.info("Admin token obtained successfully (length={})", token.length());
+                })
+                .doOnError((Throwable error) -> {
+                    log.error("Failed to obtain admin token: {}", error.getMessage());
+                    log.warn("⚠Admin functionality (user registration) will be unavailable");
+                    scheduleRetry(30); // Повтор через 30 секунд
+                })
+                .subscribe();
+    }
+
+    public Mono<String> obtainAdminTokenReactive() {
+        return webClient.post()
+                .uri(authLoginUrl)
+                .bodyValue(Map.of("email", adminEmail, "password", adminPassword))
+                .retrieve()
+                .bodyToMono(TokenResponse.class)
+                .retryWhen(Retry.backoff(5, Duration.ofSeconds(2))
+                        .maxBackoff(Duration.ofSeconds(10))
+                        .doBeforeRetry(retrySignal ->
+                                log.warn("Retrying admin token request, attempt {}/5",
+                                        retrySignal.totalRetries() + 1)))
+                .map(this::extractTokenFromResponse)
+                .doOnError((Throwable throwable) ->
+                        log.error("Failed after retries: {}", throwable.getMessage()));
+    }
+
+    private String extractTokenFromResponse(TokenResponse response) {
+        if (response == null) {
+            throw new RuntimeException("Empty response from auth service");
         }
+
+        String token = null;
+
+        // Проверяем разные возможные структуры ответа
+        if (response.getData() != null && response.getData().getAccessToken() != null) {
+            token = response.getData().getAccessToken();
+        } else if (response.getAccessToken() != null) {
+            token = response.getAccessToken();
+        }
+
+        if (token == null) {
+            throw new RuntimeException("Token not found in response");
+        }
+
+        return token;
+    }
+
+    @Data
+    private static class TokenResponse {
+        private TokenData data;
+        private String accessToken;
+
+        @Data
+        private static class TokenData {
+            @JsonProperty("accessToken")
+            private String accessToken;
+        }
+    }
+
+    private void scheduleRetry(int delaySeconds) {
+        Mono.delay(Duration.ofSeconds(delaySeconds))
+                .doOnNext(v -> {
+                    log.info("Retrying admin token acquisition after {} seconds...", delaySeconds);
+                    obtainAdminTokenReactive()
+                            .doOnSuccess(token -> {
+                                adminToken.set(token);
+                                log.info("Admin token obtained on retry (length={})", token.length());
+                            })
+                            .doOnError((Throwable error) ->
+                                    log.error("Failed again: {}", error.getMessage()))
+                            .subscribe();
+                })
+                .subscribe();
     }
 
     public String getAdminToken() {
         return adminToken.get();
     }
 
-    public void setAdminToken(String token) {
-        adminToken.set(token);
+    public boolean isTokenAvailable() {
+        return adminToken.get() != null;
+    }
+
+    public Mono<String> getAdminTokenReactive() {
+        return Mono.fromCallable(() -> {
+            String token = adminToken.get();
+            if (token == null) {
+                throw new RuntimeException("Admin token not available. " +
+                        "Try checking if auth-service is running and admin credentials are correct.");
+            }
+            return token;
+        });
     }
 }

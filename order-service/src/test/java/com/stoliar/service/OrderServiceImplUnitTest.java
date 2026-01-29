@@ -18,6 +18,7 @@ import com.stoliar.mapper.ItemMapper;
 import com.stoliar.repository.OrderRepository;
 import com.stoliar.repository.OrderItemRepository;
 import com.stoliar.repository.ItemRepository;
+import com.stoliar.service.impl.OrderServiceImpl;
 import com.stoliar.specification.OrderSpecification;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,7 +43,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class OrderServiceUnitTest {
+class OrderServiceImplUnitTest {
 
     @Mock
     private OrderRepository orderRepository;
@@ -65,7 +67,7 @@ class OrderServiceUnitTest {
     private UserServiceClient userServiceClient;
 
     @InjectMocks
-    private OrderService orderService;
+    private OrderServiceImpl orderServiceImpl;
 
     private Order testOrder;
     private Item testItem;
@@ -131,6 +133,7 @@ class OrderServiceUnitTest {
         orderCreateDto.setOrderItems(Arrays.asList(orderItemDto));
 
         when(userServiceClient.getUserById(1L)).thenReturn(testUserInfo);
+        when(orderMapper.toEntity(any(), any())).thenReturn(testOrder);
         when(itemRepository.findById(1L)).thenReturn(Optional.of(testItem));
         when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDto(any(Order.class))).thenReturn(testOrderResponseDto);
@@ -143,7 +146,7 @@ class OrderServiceUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        OrderResponseDto result = orderService.createOrder(orderCreateDto);
+        OrderResponseDto result = orderServiceImpl.createOrder(orderCreateDto);
 
         // Assert
         assertNotNull(result);
@@ -178,6 +181,8 @@ class OrderServiceUnitTest {
 
         // Настраиваем моки для сценария с fallback
         when(userServiceClient.getUserById(1L)).thenReturn(notFoundUser);
+        when(orderMapper.toEntity(any(), any())).thenReturn(testOrder);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(testItem));
 
         // Мок для сохранения заказа
         Order savedOrder = new Order();
@@ -221,7 +226,7 @@ class OrderServiceUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        OrderResponseDto result = orderService.createOrder(orderCreateDto);
+        OrderResponseDto result = orderServiceImpl.createOrder(orderCreateDto);
 
         // Assert - проверяем, что заказ создан с fallback-пользователем
         assertNotNull(result);
@@ -235,63 +240,23 @@ class OrderServiceUnitTest {
     }
 
     @Test
-    void createOrder_ItemNotFound_ShouldCreateOrderWithFallback() {
+    void createOrder_ItemNotFound_ShouldThrowEntityNotFoundException() {
         // Arrange
         OrderItemCreateDto orderItemDto = new OrderItemCreateDto();
-        orderItemDto.setItemId(999L); // Несуществующий товар
+        orderItemDto.setItemId(999L);
         orderItemDto.setQuantity(2);
 
         OrderCreateDto orderCreateDto = new OrderCreateDto();
         orderCreateDto.setUserId(1L);
-        orderCreateDto.setOrderItems(Arrays.asList(orderItemDto));
+        orderCreateDto.setOrderItems(List.of(orderItemDto));
 
         when(userServiceClient.getUserById(1L)).thenReturn(testUserInfo);
         when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+        when(orderMapper.toEntity(any(), any())).thenReturn(testOrder);
 
-        // Мок для сохранения заказа (без товаров)
-        Order savedOrder = new Order();
-        savedOrder.setId(1L);
-        savedOrder.setUserId(1L);
-        savedOrder.setEmail("service@unavailable.com"); // Fallback email
-        savedOrder.setStatus(Order.OrderStatus.PENDING);
-        savedOrder.setTotalPrice(0.0); // Без товаров
-        savedOrder.setDeleted(false);
-        savedOrder.setCreatedAt(LocalDateTime.now());
-        savedOrder.setUpdatedAt(LocalDateTime.now());
-        savedOrder.setOrderItems(Collections.emptyList()); // Пустой список товаров
-
-        when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
-
-        // Мок для маппера
-        OrderResponseDto fallbackResponse = new OrderResponseDto();
-        fallbackResponse.setId(1L);
-        fallbackResponse.setUserId(1L);
-        fallbackResponse.setUserEmail("service@unavailable.com");
-        fallbackResponse.setStatus(Order.OrderStatus.PENDING);
-        fallbackResponse.setTotalPrice(0.0);
-        fallbackResponse.setCreatedAt(LocalDateTime.now());
-        fallbackResponse.setUpdatedAt(LocalDateTime.now());
-
-        UserInfoDto fallbackUser = new UserInfoDto();
-        fallbackUser.setId(1L);
-        fallbackUser.setEmail("service@unavailable.com");
-        fallbackUser.setName("Service");
-        fallbackUser.setSurname("Unavailable");
-        fallbackUser.setActive(false);
-        fallbackResponse.setUserInfo(fallbackUser);
-
-        when(orderMapper.toResponseDto(any(Order.class))).thenReturn(fallbackResponse);
-
-        // Act
-        OrderResponseDto result = orderService.createOrder(orderCreateDto);
-
-        // Assert - проверяем fallback-заказ
-        assertNotNull(result);
-        assertEquals(1L, result.getId());
-        assertEquals("service@unavailable.com", result.getUserEmail());
-        assertEquals(0.0, result.getTotalPrice()); // Без товаров
-        assertNotNull(result.getUserInfo());
-        assertEquals("service@unavailable.com", result.getUserInfo().getEmail());
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class,
+                () -> orderServiceImpl.createOrder(orderCreateDto));
     }
 
     @Test
@@ -302,7 +267,7 @@ class OrderServiceUnitTest {
 
         // Act & Assert
         assertThrows(ServiceUnavailableException.class, () ->
-                orderService.getOrderById(1L));
+                orderServiceImpl.getOrderById(1L));
     }
 
     @Test
@@ -320,7 +285,7 @@ class OrderServiceUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        OrderResponseDto result = orderService.getOrderById(1L);
+        OrderResponseDto result = orderServiceImpl.getOrderById(1L);
 
         // Assert
         assertNotNull(result);
@@ -337,7 +302,7 @@ class OrderServiceUnitTest {
 
         // Act & Assert
         assertThrows(EntityNotFoundException.class, () ->
-            orderService.getOrderById(999L));
+            orderServiceImpl.getOrderById(999L));
     }
 
     @Test
@@ -361,7 +326,7 @@ class OrderServiceUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        Page<OrderResponseDto> result = orderService.getOrdersWithFilters(
+        Page<OrderResponseDto> result = orderServiceImpl.getOrdersWithFilters(
             new com.stoliar.dto.order.OrderFilterDto());
 
         // Assert
@@ -388,7 +353,7 @@ class OrderServiceUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        Page<OrderResponseDto> result = orderService.getOrdersByUserId(1L, pageable);
+        Page<OrderResponseDto> result = orderServiceImpl.getOrdersByUserId(1L, pageable);
 
         // Assert
         assertNotNull(result);
@@ -417,7 +382,7 @@ class OrderServiceUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        OrderResponseDto result = orderService.updateOrder(1L, updateDto);
+        OrderResponseDto result = orderServiceImpl.updateOrder(1L, updateDto);
 
         // Assert
         assertNotNull(result);
@@ -442,7 +407,7 @@ class OrderServiceUnitTest {
 
         // Act & Assert
         assertThrows(IllegalStateException.class, () ->
-            orderService.updateOrder(1L, updateDto));
+            orderServiceImpl.updateOrder(1L, updateDto));
     }
 
     @Test
@@ -457,7 +422,7 @@ class OrderServiceUnitTest {
 
         // Act & Assert
         assertThrows(IllegalStateException.class, () ->
-            orderService.updateOrder(1L, updateDto));
+            orderServiceImpl.updateOrder(1L, updateDto));
     }
 
     @Test
@@ -468,7 +433,7 @@ class OrderServiceUnitTest {
         doNothing().when(orderRepository).softDeleteById(1L);
 
         // Act
-        orderService.deleteOrder(1L);
+        orderServiceImpl.deleteOrder(1L);
 
         // Assert
         verify(orderRepository, times(1)).softDeleteById(1L);
@@ -482,6 +447,6 @@ class OrderServiceUnitTest {
 
         // Act & Assert
         assertThrows(EntityNotFoundException.class, () ->
-            orderService.deleteOrder(999L));
+            orderServiceImpl.deleteOrder(999L));
     }
 }

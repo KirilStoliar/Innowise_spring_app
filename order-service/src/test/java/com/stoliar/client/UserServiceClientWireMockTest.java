@@ -1,83 +1,114 @@
 package com.stoliar.client;
 
-import com.stoliar.dto.user.UserApiResponse;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.stoliar.config.RestTemplateConfig;
 import com.stoliar.dto.user.UserInfoDto;
 import com.stoliar.util.ServiceTokenProvider;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.ActiveProfiles;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
+@SpringBootTest(
+        classes = {
+                UserServiceClient.class,
+                RestTemplateConfig.class
+        },
+        properties = {
+                "user.service.url=http://localhost:9561",
+                "service.auth.token=test-token",
+                "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
+        }
+)
+@EnableAutoConfiguration
+@ActiveProfiles("test")
+class UserServiceClientWireMockTest {
 
-@ExtendWith(MockitoExtension.class)
-public class UserServiceClientWireMockTest {
+    static WireMockServer wireMockServer;
 
-    @Mock
-    private RestTemplate restTemplate;
-    
-    @Mock
-    private ServiceTokenProvider serviceTokenProvider;
-    
+    @Autowired
     private UserServiceClient userServiceClient;
 
-    @Test
-    void getUserById_UserExists_ShouldReturnUserInfo() throws Exception {
-        // Arrange
-        userServiceClient = new UserServiceClient(restTemplate, serviceTokenProvider);
-        
-        // Устанавливаем URL
-        setUserServiceUrl(userServiceClient, "http://localhost:8080");
-        
-        UserInfoDto userInfo = new UserInfoDto();
-        userInfo.setId(1L);
-        userInfo.setEmail("test@example.com");
-        userInfo.setActive(true);
-        
-        UserApiResponse response = new UserApiResponse();
-        response.setSuccess(true);
-        response.setMessage("User found");
-        response.setData(userInfo);
-        
-        // Здесь мы используем MockRestServiceServer
-        // Act - тестируем fallback метод напрямую
-        UserInfoDto result = userServiceClient.getUserByIdFallback(1L, 
-            new RestClientException("Service unavailable"));
-        
-        // Assert
-        assertThat(result).isNotNull();
-        assertThat(result.getEmail()).isEqualTo("service@unavailable.com");
-        assertThat(result.getActive()).isFalse();
+    @MockBean
+    private ServiceTokenProvider serviceTokenProvider;
+
+    @BeforeAll
+    static void startWireMock() {
+        wireMockServer = new WireMockServer(9561);
+        wireMockServer.start();
+        WireMock.configureFor("localhost", 9561);
     }
-    
-    @Test
-    void createFallbackUser_ShouldSetCorrectValues() {
-        // Arrange
-        userServiceClient = new UserServiceClient(restTemplate, serviceTokenProvider);
-        setUserServiceUrl(userServiceClient, "http://localhost:8080");
-        
-        // Act - через reflection тестируем приватный метод
-        UserInfoDto result = userServiceClient.getUserByIdFallback(123L, 
-            new RuntimeException("Test"));
-        
-        // Assert
-        assertThat(result.getId()).isEqualTo(123L);
-        assertThat(result.getEmail()).isEqualTo("service@unavailable.com");
-        assertThat(result.getName()).isEqualTo("Service");
-        assertThat(result.getSurname()).isEqualTo("Temporarily Unavailable");
-        assertThat(result.getActive()).isFalse();
+
+    @AfterAll
+    static void stopWireMock() {
+        wireMockServer.stop();
     }
-    
-    private void setUserServiceUrl(UserServiceClient client, String url) {
-        try {
-            var field = UserServiceClient.class.getDeclaredField("userServiceUrl");
-            field.setAccessible(true);
-            field.set(client, url);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set userServiceUrl", e);
-        }
+
+    @Test
+    void getUserById_existingUser_shouldReturnUserInfo() {
+        // Arrange
+        stubFor(get(urlEqualTo("/api/v1/users/1"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                {
+                  "data": {
+                    "id": 1,
+                    "email": "test@example.com",
+                    "name": "Test",
+                    "surname": "User",
+                    "active": true
+                  }
+                }
+            """)));
+
+        // Act
+        UserInfoDto result = userServiceClient.getUserById(1L);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(-1L, result.getId());
+    }
+
+    @Test
+    void getUserById_userNotFound_shouldReturnFallbackUser() {
+        // Arrange
+        stubFor(get(urlEqualTo("/api/v1/users/99"))
+                .willReturn(aResponse().withStatus(404)));
+
+        // Act
+        UserInfoDto result = userServiceClient.getUserById(99L);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(-1L, result.getId());
+        assertEquals("service@unavailable.com", result.getEmail());
+        assertFalse(result.getActive());
+    }
+
+    @Test
+    void getUserById_userServiceDown_shouldReturnFallbackUser() {
+        // Arrange
+        stubFor(get(urlEqualTo("/api/v1/users/1"))
+                .willReturn(aResponse().withStatus(500)));
+
+        // Act
+        UserInfoDto result = userServiceClient.getUserById(1L);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(-1L, result.getId());
+        assertEquals("service@unavailable.com", result.getEmail());
+        assertFalse(result.getActive());
     }
 }

@@ -16,25 +16,18 @@ import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
-    
-    // CREATE - стандартный save() из JpaRepository
-    
+
     // GET BY ID (только неудаленные)
     @Query("SELECT o FROM Order o WHERE o.id = :id AND o.deleted = false")
     Optional<Order> findByIdAndNotDeleted(@Param("id") Long id);
-    
-    // GET WITH FILTERS (пагинация + фильтры по дате и статусам)
-    // Реализуется через спецификации - метод findAll() из JpaSpecificationExecutor
-    
+
     // GET ORDERS BY USER ID (только неудаленные)
     @Query("SELECT o FROM Order o WHERE o.userId = :userId AND o.deleted = false")
     Page<Order> findByUserId(@Param("userId") Long userId, Pageable pageable);
     
     @Query("SELECT o FROM Order o WHERE o.userId = :userId AND o.deleted = false")
     List<Order> findAllByUserId(@Param("userId") Long userId);
-    
-    // UPDATE - стандартный save() из JpaRepository
-    
+
     // DELETE BY ID (soft delete)
     @Modifying
     @Query("UPDATE Order o SET o.deleted = true WHERE o.id = :id")
