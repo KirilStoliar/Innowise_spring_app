@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: payment-service
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/payment-service}
+      auto-index-creation: true
+
+  liquibase:
+    change-log: classpath:db/changelog/changelog-master.yaml
+    enabled: true
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        spring.json.type.mapping: paymentEvent:com.stoliar.dto.event.PaymentEvent
+    topics:
+      payment-events: ${KAFKA_TOPIC_PAYMENT_EVENTS:payment-events}
+
+server:
+  port: 8084
+
+# External API Configuration
+external:
+  api:
+    url: https://www.random.org/integers
+
+# Payment Service Configuration
+payment:
+  service:
+    fallback:
+      enabled: true
+
+# OpenAPI (Swagger) Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+logging:
+  level:
+    com.innowise: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN

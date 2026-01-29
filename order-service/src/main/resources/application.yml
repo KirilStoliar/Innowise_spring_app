@@ -19,6 +19,25 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: ${LIQUIBASE_ENABLED:true}
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:order-service-payment-events}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: paymentEvent:com.stoliar.dto.event.PaymentEvent
+        spring.json.use.type.headers: false
+        allow.auto.create.topics: true
+        metadata.max.age.ms: 10000
+    admin:
+      properties:
+        bootstrap.servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+        client.id: order-service-admin
+    topics:
+      payment-events: ${KAFKA_TOPIC_PAYMENT_EVENTS:payment-events}
+
 server:
   port: 8082
   error:
@@ -78,3 +97,5 @@ logging:
     org.springframework.web: DEBUG
     org.hibernate.SQL: DEBUG
     io.github.resilience4j: INFO
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN

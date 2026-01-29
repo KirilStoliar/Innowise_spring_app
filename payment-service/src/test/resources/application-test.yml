@@ -1,0 +1,27 @@
+spring:
+  data:
+    mongodb:
+      # Будет переопределено через DynamicPropertySource
+      uri: mongodb://localhost:27017/testdb
+  liquibase:
+    enabled: false
+  security:
+    enabled: false
+
+server:
+  port: 0  # Random port for tests
+
+payment:
+  service:
+    fallback:
+      enabled: true
+
+external:
+  api:
+    url: http://localhost:9090/integers
+
+logging:
+  level:
+    com.stoliar: INFO
+    org.testcontainers: INFO
+    org.springframework: WARN

@@ -12,6 +12,8 @@ gateway:
     url: http://user-service:8080
   order:
     url: http://order-service:8082
+  payment:
+    url: http://payment-service:8084
 
 app:
   jwt:
