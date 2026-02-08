@@ -74,6 +74,11 @@ jobs:
         env:
           USE_TESTCONTAINERS: true
 
+      - name: Run unit tests for payment-service
+        run: ./gradlew :payment-service:test -Duse.testcontainers=true --stacktrace
+        env:
+          EXTERNAL_API_URL: http://localhost:8080/integers
+
       - name: Setup Node.js for frontend
         uses: actions/setup-node@v4
         with:
@@ -95,16 +100,11 @@ jobs:
         env:
           CI: true
 
-      - name: Run unit tests for payment-service
-        run: ./gradlew :payment-service:test -Duse.testcontainers=true --stacktrace
-        env:
-          EXTERNAL_API_URL: http://localhost:8080/integers
-
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
 
       - name: Test Report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v1.9.0
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         with:
           name: Test Results
