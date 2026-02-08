@@ -22,7 +22,6 @@ public class ErrorResponse {
     private String path;
     private Map<String, String> errors;
     
-    // Альтернатива статическим методам создания
     public static ErrorResponse of(Integer status, String error, String message) {
         return ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())

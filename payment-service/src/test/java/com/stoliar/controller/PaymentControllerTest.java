@@ -45,6 +45,7 @@ class PaymentControllerTest {
     @WithMockUser(username = "10", roles = {"USER"})
     void createPayment_success() throws Exception {
         // Given
+        String paymentId = new ObjectId().toString();
         PaymentRequest request = PaymentRequest.builder()
                 .orderId(1L)
                 .paymentAmount(new BigDecimal("100.00"))
@@ -89,6 +90,7 @@ class PaymentControllerTest {
                 .timestamp(LocalDateTime.now())
                 .paymentAmount(new BigDecimal("50.00"))
                 .build();
+      
         when(paymentService.getPaymentById(
                 eq(paymentId),
                 any()  // Authentication
@@ -296,5 +298,28 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data[0].userId").value(userId));
+    }
+
+    @Test
+    void getPaymentById_Exists_ReturnsPayment() throws Exception {
+        // Given
+        String paymentId = new ObjectId().toString();
+        PaymentResponse response = PaymentResponse.builder()
+                .id(paymentId)
+                .orderId(1L)
+                .userId(1L)
+                .status(PaymentStatus.COMPLETED)
+                .timestamp(LocalDateTime.now())
+                .paymentAmount(new BigDecimal("100.00"))
+                .build();
+
+        when(paymentService.getPaymentById(paymentId)).thenReturn(response);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/payments/{id}", paymentId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(paymentId));
     }
 }

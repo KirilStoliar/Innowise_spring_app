@@ -17,7 +17,7 @@ public interface OrderMapper {
     OrderResponseDto toResponseDto(Order order);
     
     List<OrderResponseDto> toResponseDtoList(List<Order> orders);
-    
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", source = "orderCreateDto.userId")
     @Mapping(target = "email", source = "userInfo.email")

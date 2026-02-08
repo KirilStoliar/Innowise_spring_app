@@ -61,7 +61,7 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponseDto> getOrderById(
             @Parameter(description = "Order ID", required = true) @PathVariable Long id) {
-        
+
         log.info("Getting order by id: {}", id);
         OrderResponseDto order = orderServiceImpl.getOrderById(id);
         return ResponseEntity.ok(order);
@@ -74,22 +74,22 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Page<OrderResponseDto>> getOrdersWithFilters(
-            @Parameter(description = "Filter by created from date (ISO format)") 
+            @Parameter(description = "Filter by created from date (ISO format)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
-            
-            @Parameter(description = "Filter by created to date (ISO format)") 
+
+            @Parameter(description = "Filter by created to date (ISO format)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo,
-            
-            @Parameter(description = "Filter by order statuses (comma-separated)") 
+
+            @Parameter(description = "Filter by order statuses (comma-separated)")
             @RequestParam(required = false) List<Order.OrderStatus> statuses,
-            
+
             @Parameter(description = "Page number (default: 0)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size (default: 10)") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort by field (default: createdAt)") @RequestParam(defaultValue = "createdAt") String sort) {
-        
-        log.info("Getting orders with filters - createdFrom: {}, createdTo: {}, statuses: {}", 
+
+        log.info("Getting orders with filters - createdFrom: {}, createdTo: {}, statuses: {}",
                 createdFrom, createdTo, statuses);
-        
+
         OrderFilterDto filterDto = new OrderFilterDto();
         filterDto.setCreatedFrom(createdFrom);
         filterDto.setCreatedTo(createdTo);
@@ -114,7 +114,7 @@ public class OrderController {
             @Parameter(description = "Page number (default: 0)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size (default: 10)") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort by field (default: createdAt)") @RequestParam(defaultValue = "createdAt") String sort) {
-        
+
         log.info("Getting orders for user: {}", userId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(sort));
         Page<OrderResponseDto> orders = orderServiceImpl.getOrdersByUserId(userId, pageable);
@@ -155,7 +155,7 @@ public class OrderController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrder(
             @Parameter(description = "Order ID", required = true) @PathVariable Long id) {
-        
+
         log.info("Deleting order with id: {}", id);
         orderServiceImpl.deleteOrder(id);
         return ResponseEntity.noContent().build();
