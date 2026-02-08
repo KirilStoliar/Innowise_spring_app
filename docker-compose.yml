@@ -107,16 +107,13 @@ services:
     ports:
       - "${PAYMENT_SERVICE_PORT}:8084"
     environment:
-      - DB_URL=${DB_URL_PAYMENT}
-      - DB_USERNAME=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - SHOW_SQL=${SHOW_SQL}
+      - MONGODB_URI=mongodb://payment-mongodb:27017/payment_service
       - LIQUIBASE_ENABLED=${LIQUIBASE_ENABLED}
       # Kafka configuration for Docker
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC_PAYMENT_EVENTS=payment-events
     depends_on:
-      payment-db:
+      payment-mongodb:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -190,25 +187,25 @@ services:
       start_period: 30s
 
   # Payment Database
-  payment-db:
-    image: postgres:15-alpine
+  payment-mongodb:
+    image: mongo:7.0
+    container_name: payment-mongodb
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${PAYMENT_DB_NAME}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MONGO_INITDB_DATABASE: payment_service
     ports:
-      - "${PAYMENT_DB_PORT}:5432"
+      - "${PAYMENT_MONGODB_PORT}:27017"
     volumes:
-      - payment-postgres-data:/var/lib/postgresql/data
+      - payment-mongodb-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
       - innowise-network
-    restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   # Redis
   redis:
@@ -287,7 +284,7 @@ volumes:
   auth-postgres-data:
   user-postgres-data:
   order-postgres-data:
-  payment-postgres-data:
+  payment-mongodb-data:
   redis-data:
   kafka-data:
   zookeeper-data:

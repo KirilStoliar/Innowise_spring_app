@@ -19,40 +19,78 @@ jobs:
       actions: read
       contents: read
 
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: ${{ secrets.CI_POSTGRES_DB }}
-          POSTGRES_USER: ${{ secrets.CI_DB_USERNAME }}
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-      wiremock:
-        image: wiremock/wiremock:3.3.1
-        options: >-
-          --health-cmd "curl -f http://localhost:8080/__admin || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 8080:8080
+#    services:
+#      postgres:
+#        image: postgres:15-alpine
+#        env:
+#          POSTGRES_DB: ${{ secrets.CI_POSTGRES_DB }}
+#          POSTGRES_USER: ${{ secrets.CI_DB_USERNAME }}
+#          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+#        options: >-
+#          --health-cmd pg_isready
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#        ports:
+#          - 5432:5432
+#
+#      redis:
+#        image: redis:7-alpine
+#        options: >-
+#          --health-cmd "redis-cli ping"
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#        ports:
+#          - 6379:6379
+#
+#      wiremock:
+#        image: wiremock/wiremock:3.3.1
+#        options: >-
+#          --health-cmd "curl -f http://localhost:8080/__admin || exit 1"
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#        ports:
+#          - 8080:8080
+#
+#      kafka:
+#        image: confluentinc/cp-kafka:7.4.0
+#        env:
+#          KAFKA_BROKER_ID: 1
+#          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+#          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+#          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+#          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+#          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+#          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+#        ports:
+#          - 9092:9092
+#
+#      zookeeper:
+#        image: confluentinc/cp-zookeeper:7.4.0
+#        env:
+#          ZOOKEEPER_CLIENT_PORT: 2181
+#          ZOOKEEPER_TICK_TIME: 2000
+#        ports:
+#          - 2181:2181
+#        options: >-
+#          --health-cmd="echo ruok | nc localhost 2181 || exit 1"
+#          --health-interval=10s
+#          --health-timeout=5s
+#          --health-retries=3
+#
+#      mongodb:
+#        image: mongo:7.0
+#        ports:
+#          - "27017:27017"
+#        options: >-
+#          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#        env:
+#          MONGO_INITDB_DATABASE: test_payment
 
       kafka:
         image: confluentinc/cp-kafka:7.4.0
@@ -100,6 +138,15 @@ jobs:
       - name: Validate Gradle wrapper
         run: ./gradlew help
 
+      # Устанавливаем Docker для Testcontainers
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start Docker daemon
+        run: |
+          sudo systemctl start docker || true
+          sudo chmod 666 /var/run/docker.sock || true
+
       # Собираем все модули
       - name: Build all modules
         run: ./gradlew build -x test
@@ -114,21 +161,31 @@ jobs:
       - name: Run integration tests for user-service
         run: ./gradlew :user-service:integration-test
         env:
-          DB_URL: jdbc:postgresql://localhost:5432/test_db
-          DB_USERNAME: test_user
-          DB_PASSWORD: test_password
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
+          USE_TESTCONTAINERS: true
+#          DB_URL: jdbc:postgresql://localhost:5432/test_db
+#          DB_USERNAME: test_user
+#          DB_PASSWORD: test_password
+#          REDIS_HOST: localhost
+#          REDIS_PORT: 6379
 
       - name: Run tests for order-service
         run: ./gradlew :order-service:test -Duse.testcontainers=true --stacktrace
         env:
-          DB_URL: jdbc:postgresql://localhost:5432/${{ secrets.CI_POSTGRES_DB }}
-          DB_USERNAME: ${{ secrets.CI_DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-          WIREMOCK_SERVER_PORT: 8080  # Порт WireMock
-          USER_SERVICE_URL: http://localhost:8080  # URL для мокирования user-service
-          JWT_SECRET: test-secret-key-for-jwt-signing-in-tests-only
+          USE_TESTCONTAINERS: true
+#          DB_URL: jdbc:postgresql://localhost:5432/${{ secrets.CI_POSTGRES_DB }}
+#          DB_USERNAME: ${{ secrets.CI_DB_USERNAME }}
+#          DB_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+#          WIREMOCK_SERVER_PORT: 8080  # Порт WireMock
+#          USER_SERVICE_URL: http://localhost:8080  # URL для мокирования user-service
+#          JWT_SECRET: test-secret-key-for-jwt-signing-in-tests-only
+
+      - name: Run unit tests for payment-service
+        run: ./gradlew :payment-service:test
+        env:
+          USE_TESTCONTAINERS: true
+#          EXTERNAL_API_URL: http://localhost:8080/integers
+#          MONGODB_URI: mongodb://localhost:27017/test_payment
+#          LIQUIBASE_ENABLED: false
 
       - name: Run unit tests for payment-service
         run: ./gradlew :payment-service:test -Duse.testcontainers=true --stacktrace
@@ -173,10 +230,34 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Set up Docker для Testcontainers
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start Docker daemon
+        run: |
+          sudo systemctl start docker || true
+          sudo chmod 666 /var/run/docker.sock || true
+
+#      - name: Install MongoDB for tests
+#        run: |
+#          sudo apt-get update
+#          sudo apt-get install -y gnupg wget
+#          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
+#          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+#          sudo apt-get update
+#          sudo apt-get install -y mongodb-org
+#
+#      - name: Start MongoDB for tests
+#        run: |
+#          sudo systemctl start mongod
+#          sleep 5
+#          mongosh --eval "db.runCommand({ping: 1})"
+
       - name: Build and generate coverage reports
         run: |
           ./gradlew clean build jacocoTestReport --stacktrace --no-daemon
         env:
+          USE_TESTCONTAINERS: true
           # Передаем переменные окружения для всех сервисов
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           API_GATEWAY_INTERNAL_TOKEN: ${{ secrets.API_GATEWAY_INTERNAL_TOKEN }}
@@ -186,11 +267,11 @@ jobs:
           EXTERNAL_API_URL: http://localhost:8080/integers
           SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
           # Для других сервисов
-          DB_URL: jdbc:postgresql://localhost:5432/test_db
-          DB_USERNAME: test_user
-          DB_PASSWORD: test_password
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
+#          DB_URL: jdbc:postgresql://localhost:5432/test_db
+#          DB_USERNAME: test_user
+#          DB_PASSWORD: test_password
+#          REDIS_HOST: localhost
+#          REDIS_PORT: 6379
 
       - name: Debug - Check reports exist
         run: |

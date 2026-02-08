@@ -19,7 +19,7 @@ public class PaymentEvent {
     /** Уникальный ID события */
     private String eventId;
 
-    private Long paymentId;
+    private String paymentId;
     private Long orderId;
     private Long userId;
 
