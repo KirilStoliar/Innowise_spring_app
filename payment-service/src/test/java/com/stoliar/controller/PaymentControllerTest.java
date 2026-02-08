@@ -89,7 +89,7 @@ class PaymentControllerTest {
                 .timestamp(LocalDateTime.now())
                 .paymentAmount(new BigDecimal("50.00"))
                 .build();
-
+        
         when(paymentService.getPaymentById(
                 eq(paymentId),
                 any()  // Authentication
