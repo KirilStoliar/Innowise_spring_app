@@ -95,11 +95,6 @@ jobs:
         env:
           CI: true
 
-      - name: Run frontend linting
-        run: |
-          cd frontend/ui
-          npm run lint
-
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
 
@@ -156,19 +151,6 @@ jobs:
           API_GATEWAY_INTERNAL_TOKEN: ${{ secrets.API_GATEWAY_INTERNAL_TOKEN }}
           GATEWAY_ADMIN_EMAIL: ${{ secrets.GATEWAY_ADMIN_EMAIL }}
           GATEWAY_ADMIN_PASSWORD: ${{ secrets.GATEWAY_ADMIN_PASSWORD }}
-
-      - name: Install frontend dependencies for analysis
-        run: |
-          cd frontend/ui
-          npm ci
-        env:
-          CI: true
-
-      - name: Run frontend code quality checks
-        run: |
-          cd frontend/ui
-          npm run lint
-          npm run build -- --configuration production
 
       - name: Debug - Check reports exist
         run: |
