@@ -65,7 +65,7 @@ jobs:
           USE_TESTCONTAINERS: true
 
       - name: Run tests for order-service
-        run: ./gradlew :order-service:test --stacktrace
+        run: ./gradlew :order-service:test -Duse.testcontainers=true --stacktrace
         env:
           USE_TESTCONTAINERS: true
 
@@ -94,6 +94,11 @@ jobs:
           npm run build -- --configuration production
         env:
           CI: true
+
+      - name: Run unit tests for payment-service
+        run: ./gradlew :payment-service:test -Duse.testcontainers=true --stacktrace
+        env:
+          EXTERNAL_API_URL: http://localhost:8080/integers
 
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
