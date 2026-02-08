@@ -313,11 +313,14 @@ class PaymentControllerTest {
                 .paymentAmount(new BigDecimal("100.00"))
                 .build();
 
-        when(paymentService.getPaymentById(paymentId)).thenReturn(response);
+        when(paymentService.getPaymentById(
+                eq(paymentId),
+                any()  // Authentication
+        )).thenReturn(response);
 
         // When & Then
         mockMvc.perform(get("/api/v1/payments/{id}", paymentId)
-                        .accept(MediaType.APPLICATION_JSON))
+                .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(paymentId));
