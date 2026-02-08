@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -38,7 +38,7 @@ class UserServiceClientWireMockTest {
     @Autowired
     private UserServiceClient userServiceClient;
 
-    @MockBean
+    @MockitoBean
     private ServiceTokenProvider serviceTokenProvider;
 
     @BeforeAll

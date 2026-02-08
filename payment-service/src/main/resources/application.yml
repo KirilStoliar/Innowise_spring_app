@@ -2,20 +2,10 @@ spring:
   application:
     name: payment-service
 
-  datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-    show-sql: true
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/payment-service}
+      auto-index-creation: true
 
   liquibase:
     change-log: classpath:db/changelog/changelog-master.yaml
@@ -40,6 +30,10 @@ external:
   api:
     url: https://www.random.org/integers
 
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+
 # Payment Service Configuration
 payment:
   service:
@@ -58,7 +52,6 @@ springdoc:
 logging:
   level:
     com.innowise: DEBUG
-    org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.kafka: INFO
     org.apache.kafka: WARN

@@ -4,12 +4,28 @@ kind: Kustomization
 namespace: innowise
 
 resources:
+  - namespace.yaml
+  - infrastructure/kafka.yaml
+  - infrastructure/redis.yaml
+  - configs/configmap-api-gateway.yaml
+  - configs/configmap-auth-service.yaml
+  - configs/configmap-order-service.yaml
+  - configs/configmap-payment-service.yaml
+  - configs/configmap-user-service.yaml
+  - configs/secrets.yaml
+  - databases/mongo-payment.yaml
+  - databases/postgres-auth.yaml
+  - databases/postgres-order.yaml
+  - databases/postgres-user.yaml
+  - ingress/ingress.yaml
   - monitoring/otel-configmap.yaml
+  - monitoring/alloy.yaml
   - services/api-gateway
   - services/auth-service
   - services/order-service
   - services/payment-service
   - services/user-service
+  - services/frontend
 
 patches:
   - path: monitoring/java-otel-patch-api-gateway.yaml

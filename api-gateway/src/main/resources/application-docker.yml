@@ -4,6 +4,27 @@ server:
 spring:
   application:
     name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:4200"
+              - "http://127.0.0.1:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - Authorization
+            allowCredentials: true
 
 gateway:
   auth:
@@ -19,11 +40,13 @@ app:
   jwt:
     secret: ${JWT_SECRET}
 
+# admin defaults
 gateway-admin:
-  email: ${ADMIN_EMAIL:admin@example.com}
-  password: ${ADMIN_PASSWORD:admin123}
+  email: ${GATEWAY_ADMIN_EMAIL:admin@example.com}
+  password: ${GATEWAY_ADMIN_PASSWORD:admin123}
 
 logging:
   level:
     org.springframework.cloud.gateway: INFO
     reactor.netty: INFO
+    org.springframework.web: INFO

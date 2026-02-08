@@ -134,4 +134,15 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.findAll(spec, pageable).map(userMapper::toDTO);
     }
+
+    @Override
+    @Transactional
+    public Long getUserIdByEmail(String email) {
+        log.info("Getting user ID by email: {}", email);
+
+        Long userId = userRepository.findIdByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
+
+        return userId;
+    }
 }

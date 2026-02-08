@@ -43,6 +43,10 @@ data:
       service:
         url: ${USER_SERVICE_URL}
     
+    app:
+      jwt:
+        secret: ${JWT_SECRET}
+    
     resilience4j:
       circuitbreaker:
         instances:

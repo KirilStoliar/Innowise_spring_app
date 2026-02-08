@@ -5,10 +5,17 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
+    show-sql: false
 
   liquibase:
     enabled: false
+
+  security:
+    enabled: true
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
 server:
   port: 0
@@ -18,8 +25,12 @@ user:
     url: http://localhost:9999
     jwt-secret: test-secret-key-for-jwt-signing-in-tests-only
 
+jwt:
+  secret: test-jwt-secret-for-testing
+
 logging:
   level:
     com.stoliar: DEBUG
     org.springframework: WARN
     org.hibernate.SQL: false
+    org.springframework.security: DEBUG

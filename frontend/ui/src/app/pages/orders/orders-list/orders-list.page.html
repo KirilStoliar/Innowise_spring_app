@@ -1,0 +1,230 @@
+<div class="min-h-screen bg-gray-50 p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Orders</h1>
+        <p class="text-gray-600 mt-1">
+          @if (auth.isAdmin()) { Manage all customer orders } @else { View and manage your orders }
+        </p>
+      </div>
+      <div class="flex gap-3 text-end">
+        <div class="text-sm">
+          <p class="font-medium text-gray-900">{{ auth.email() }}</p>
+          <p class="text-gray-500">{{ auth.role() }}</p>
+        </div>
+        <button
+          (click)="logout()"
+          class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+        >
+          Logout
+        </button>
+        <a
+          routerLink="/orders/new"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          + New Order
+        </a>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex gap-2 mb-6 border-b border-gray-200">
+      <button
+        (click)="navigateTo('/orders')"
+        [class.border-b-2]="currentRoute() === '/orders'"
+        [class.border-blue-600]="currentRoute() === '/orders'"
+        [class.text-blue-600]="currentRoute() === '/orders'"
+        class="px-4 py-2 font-medium text-gray-600 hover:text-gray-900"
+      >
+        Orders
+      </button>
+      <button
+        (click)="navigateTo('/payments')"
+        [class.border-b-2]="currentRoute() === '/payments'"
+        [class.border-blue-600]="currentRoute() === '/payments'"
+        [class.text-blue-600]="currentRoute() === '/payments'"
+        class="px-4 py-2 font-medium text-gray-600 hover:text-gray-900"
+      >
+        Payments
+      </button>
+      @if (auth.isAdmin()) {
+      <button
+        (click)="navigateTo('/users')"
+        [class.border-b-2]="currentRoute() === '/users'"
+        [class.border-blue-600]="currentRoute() === '/users'"
+        [class.text-blue-600]="currentRoute() === '/users'"
+        class="px-4 py-2 font-medium text-gray-600 hover:text-gray-900"
+      >
+        Users
+      </button>
+      }
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div class="flex gap-4 items-end">
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+          <select
+            [(ngModel)]="selectedStatus"
+            (change)="applyFilters()"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+        <button
+          (click)="resetFilters()"
+          class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    @if (loading()) {
+    <div class="text-center py-12">
+      <div
+        class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-blue-600"
+      ></div>
+      <p class="mt-4 text-gray-600">Loading orders...</p>
+    </div>
+    }
+
+    <!-- Error -->
+    @if (error()) {
+    <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+      {{ error() }}
+    </div>
+    }
+
+    <!-- Orders List -->
+    @if (!loading() && orders().length > 0) {
+    <div class="space-y-4">
+      @for (order of orders(); track order.id) {
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <div class="flex items-center gap-3">
+                <h3 class="text-lg font-semibold text-gray-900">Order #{{ order.id }}</h3>
+                <span
+                  [class]="getStatusClass(order.status)"
+                  class="px-3 py-1 rounded-full text-xs font-medium"
+                >
+                  {{ order.status }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-600 mt-1">{{ order.userEmail }}</p>
+              <p class="text-xs text-gray-500 mt-1">Created: {{ formatDate(order.createdAt) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold text-gray-900">${{ order.totalPrice.toFixed(2) }}</p>
+            </div>
+          </div>
+
+          <!-- Order Items -->
+          <div class="border-t border-gray-100 pt-4 mb-4">
+            <p class="text-sm font-medium text-gray-700 mb-2">Items:</p>
+            <div class="space-y-2">
+              @for (item of order.orderItems; track item.id) {
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600"> {{ item.itemName }} × {{ item.quantity }} </span>
+                <span class="font-medium text-gray-900">
+                  ${{ (item.itemPrice * item.quantity).toFixed(2) }}
+                </span>
+              </div>
+              }
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-2 border-t border-gray-100 pt-4">
+            @if (canPay(order)) {
+            <button
+              (click)="payOrder(order.id)"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            >
+              Pay Now
+            </button>
+            } @if (canEdit(order)) {
+            <a
+              [routerLink]="['/orders', order.id, 'edit']"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Edit
+            </a>
+            } @if (canDelete(order)) {
+            <button
+              (click)="deleteOrder(order.id)"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              Delete
+            </button>
+            }
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Pagination -->
+    @if (orderService.totalPages() > 1) {
+    <div class="flex justify-center gap-2 mt-6">
+      <button
+        (click)="changePage(currentPage() - 1)"
+        [disabled]="currentPage() === 0"
+        class="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+      >
+        Previous
+      </button>
+      <span class="px-4 py-2 text-gray-700">
+        Page {{ currentPage() + 1 }} of {{ orderService.totalPages() }}
+      </span>
+      <button
+        (click)="changePage(currentPage() + 1)"
+        [disabled]="currentPage() >= orderService.totalPages() - 1"
+        class="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+      >
+        Next
+      </button>
+    </div>
+    } }
+
+    <!-- Empty State -->
+    @if (!loading() && orders().length === 0) {
+    <div class="text-center py-12 bg-white rounded-lg shadow-sm">
+      <svg
+        class="mx-auto h-12 w-12 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">No orders</h3>
+      <p class="mt-1 text-sm text-gray-500">Get started by creating a new order.</p>
+      <div class="mt-6">
+        <a
+          routerLink="/orders/new"
+          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          + New Order
+        </a>
+      </div>
+    </div>
+    }
+  </div>
+</div>

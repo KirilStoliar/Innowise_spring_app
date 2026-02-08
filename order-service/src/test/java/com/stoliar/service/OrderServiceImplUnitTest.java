@@ -26,15 +26,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,6 +40,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@ActiveProfiles("test")
 class OrderServiceImplUnitTest {
 
     @Mock
@@ -309,12 +307,26 @@ class OrderServiceImplUnitTest {
     void getOrdersWithFilters_ValidFilters_ShouldReturnPageOfOrders() {
         // Arrange
         Page<Order> orderPage = new PageImpl<>(Arrays.asList(testOrder));
-        Pageable pageable = PageRequest.of(0, 10);
+
+        // Создаем OrderFilterDto с page и size
+        com.stoliar.dto.order.OrderFilterDto filterDto = new com.stoliar.dto.order.OrderFilterDto();
+        filterDto.setPage(0);
+        filterDto.setSize(10);
+        filterDto.setSort("createdAt");
+
+        Pageable pageable = PageRequest.of(
+                filterDto.getPage(),
+                filterDto.getSize(),
+                Sort.by(filterDto.getSort())
+        );
 
         when(orderSpecification.withFilters(any(), any(), any()))
-            .thenReturn((Specification<Order>) (root, query, criteriaBuilder) -> null);
+                .thenReturn((Specification<Order>) (root, query, criteriaBuilder) -> null);
+
+        // Используем eq() для pageable
         when(orderRepository.findAll(any(Specification.class), eq(pageable)))
-            .thenReturn(orderPage);
+                .thenReturn(orderPage);
+
         when(userServiceClient.getUserById(1L)).thenReturn(testUserInfo);
         when(orderMapper.toResponseDto(testOrder)).thenReturn(testOrderResponseDto);
 
@@ -326,8 +338,7 @@ class OrderServiceImplUnitTest {
         when(itemMapper.toDto(any(OrderItem.class))).thenReturn(orderItemResponseDto);
 
         // Act
-        Page<OrderResponseDto> result = orderServiceImpl.getOrdersWithFilters(
-            new com.stoliar.dto.order.OrderFilterDto());
+        Page<OrderResponseDto> result = orderServiceImpl.getOrdersWithFilters(filterDto);
 
         // Assert
         assertNotNull(result);

@@ -7,6 +7,8 @@ build/
 !**/src/test/**/build/
 otel-agent-rendered.yaml
 otel-java-agent
+init-mongo.js
+build-images.ps1
 
 ### STS ###
 .apt_generated

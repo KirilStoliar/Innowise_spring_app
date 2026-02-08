@@ -15,6 +15,7 @@ public class ExternalApiClient {
     
     private final RestTemplate restTemplate;
     private final Random random;
+    private final String format = "?num=1&min=1&max=100&col=1&base=10&format=plain&rnd=new";
 
     @Value("${external.api.url:https://www.random.org/integers}")
     private String externalApiUrl;
@@ -34,7 +35,7 @@ public class ExternalApiClient {
     public PaymentStatus determinePaymentStatus() {
         try {
             // Вызов внешнего API для получения случайного числа
-            String url = externalApiUrl + "?num=1&min=1&max=100&col=1&base=10&format=plain&rnd=new";
+            String url = externalApiUrl + format;
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
             
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {

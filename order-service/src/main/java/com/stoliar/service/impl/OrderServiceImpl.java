@@ -21,12 +21,12 @@ import com.stoliar.repository.OrderItemRepository;
 import com.stoliar.repository.ItemRepository;
 import com.stoliar.service.OrderService;
 import com.stoliar.specification.OrderSpecification;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,7 +100,8 @@ public class OrderServiceImpl implements OrderService {
     public Page<OrderResponseDto> getOrdersWithFilters(OrderFilterDto filterDto) {
         log.info("Getting orders with filters");
 
-        Pageable pageable = PageRequest.of(filterDto.getPage(), filterDto.getSize());
+        Pageable pageable = PageRequest.of(filterDto.getPage(), filterDto.getSize(),
+                Sort.by(filterDto.getSort()));
         Specification<Order> spec = orderSpecification.withFilters(
                 filterDto.getCreatedFrom(), filterDto.getCreatedTo(), filterDto.getStatuses());
 

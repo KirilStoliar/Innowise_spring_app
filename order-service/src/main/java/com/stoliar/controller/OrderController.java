@@ -21,6 +21,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,6 +44,7 @@ public class OrderController {
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "404", description = "User or item not found")
     })
+    @PreAuthorize("hasRole('ADMIN') or #orderCreateDto.userId == authentication.principal")
     @PostMapping
     public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderCreateDto orderCreateDto) {
         log.info("Creating new order for user: {}", orderCreateDto.getUserId());
@@ -55,6 +57,7 @@ public class OrderController {
             @ApiResponse(responseCode = "200", description = "Order retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "Order not found")
     })
+    @PreAuthorize("hasRole('ADMIN') or @orderSecurity.checkOrderAccess(#id, authentication)")
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponseDto> getOrderById(
             @Parameter(description = "Order ID", required = true) @PathVariable Long id) {
@@ -68,6 +71,7 @@ public class OrderController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Orders retrieved successfully")
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Page<OrderResponseDto>> getOrdersWithFilters(
             @Parameter(description = "Filter by created from date (ISO format)") 
@@ -90,6 +94,9 @@ public class OrderController {
         filterDto.setCreatedFrom(createdFrom);
         filterDto.setCreatedTo(createdTo);
         filterDto.setStatuses(statuses);
+        filterDto.setPage(page);
+        filterDto.setSize(size);
+        filterDto.setSort(sort);
         
         Page<OrderResponseDto> orders = orderServiceImpl.getOrdersWithFilters(filterDto);
         return ResponseEntity.ok(orders);
@@ -100,6 +107,7 @@ public class OrderController {
             @ApiResponse(responseCode = "200", description = "User orders retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "User not found")
     })
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal")
     @GetMapping("/user/{userId}")
     public ResponseEntity<Page<OrderResponseDto>> getOrdersByUserId(
             @Parameter(description = "User ID", required = true) @PathVariable Long userId,
@@ -127,6 +135,7 @@ public class OrderController {
             @ApiResponse(responseCode = "404", description = "Order, user or item not found"),
             @ApiResponse(responseCode = "409", description = "Cannot update in current order status")
     })
+    @PreAuthorize("hasRole('ADMIN') or @orderSecurity.checkOrderAccess(#id, authentication)")
     @PutMapping("/{id}")
     public ResponseEntity<OrderResponseDto> updateOrder(
             @Parameter(description = "Order ID", required = true) @PathVariable Long id,
@@ -142,6 +151,7 @@ public class OrderController {
             @ApiResponse(responseCode = "204", description = "Order deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Order not found")
     })
+    @PreAuthorize("hasRole('ADMIN') or @orderSecurity.checkOrderAccess(#id, authentication)")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrder(
             @Parameter(description = "Order ID", required = true) @PathVariable Long id) {

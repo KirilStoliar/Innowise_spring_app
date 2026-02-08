@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
@@ -37,4 +38,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     // SPECIFICATION METHODS
     Page<User> findAll(Specification<User> spec, Pageable pageable);
+
+    @Query("SELECT u.id FROM User u WHERE u.email = :email")
+    Optional<Long> findIdByEmail(@Param("email") String email);
 }

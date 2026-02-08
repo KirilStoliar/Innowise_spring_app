@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: payment-service
   namespace: innowise
-  labels:
-    app: payment-service
 spec:
   replicas: 2
   selector:
@@ -20,9 +18,9 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
     spec:
       initContainers:
-        - name: wait-for-db
+        - name: wait-for-mongodb
           image: busybox:1.36
-          command: [ "sh", "-c", "until nc -z payment-db 5432; do sleep 3; done" ]
+          command: ["sh", "-c", "until nc -z payment-mongodb 27017; do sleep 3; done"]
         - name: wait-for-kafka
           image: busybox:1.36
           command: [ "sh", "-c", "until nc -z kafka 9092; do sleep 3; done" ]
@@ -33,36 +31,11 @@ spec:
           ports:
             - containerPort: 8084
           env:
-            - name: DB_URL
+            - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:
-                  name: db-secrets
-                  key: DB_URL_PAYMENT
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: db-secrets
-                  key: DB_USERNAME_PAYMENT
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: db-secrets
-                  key: DB_PASSWORD_PAYMENT
-            - name: SPRING_LIQUIBASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: db-secrets
-                  key: DB_URL_PAYMENT
-            - name: SPRING_LIQUIBASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: db-secrets
-                  key: DB_USERNAME_PAYMENT
-            - name: SPRING_LIQUIBASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: db-secrets
-                  key: DB_PASSWORD_PAYMENT
+                  name: mongodb-secrets
+                  key: MONGODB_URI
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

@@ -51,6 +51,7 @@ public class AdminAuthHeaderGatewayFilter implements GatewayFilter, Ordered {
             ServerHttpRequest mutated = exchange.getRequest().mutate()
                     .header("Authorization", "Bearer " + token)
                     .header("X-Service-Name", "api-gateway")
+                    .header("X-Original-User-Agent", exchange.getRequest().getHeaders().getFirst("User-Agent"))
                     .build();
 
             // Логируем измененные заголовки
@@ -67,6 +68,6 @@ public class AdminAuthHeaderGatewayFilter implements GatewayFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE + 5; // Выполнится ДО JWT фильтра
+        return Ordered.LOWEST_PRECEDENCE + 15;
     }
 }

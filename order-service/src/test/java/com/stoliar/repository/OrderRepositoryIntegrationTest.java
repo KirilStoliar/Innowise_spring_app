@@ -49,6 +49,9 @@ class OrderRepositoryIntegrationTest {
             registry.add("spring.datasource.driver-class-name",
                     () -> "org.postgresql.Driver");
         }
+
+        registry.add("spring.autoconfigure.exclude",
+                () -> "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration");
     }
 
     @Autowired

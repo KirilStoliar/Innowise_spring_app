@@ -42,5 +42,15 @@ spec:
               value: "true"
             - name: OTEL_INSTRUMENTATION_LOGGING_LOGBACK_ENABLED
               value: "true"
+            - name: OTEL_INSTRUMENTATION_SPRING_WEBMVC_ENABLED
+              value: "true"
+            - name: OTEL_INSTRUMENTATION_KAFKA_ENABLED
+              value: "true"
             - name: OTEL_INSTRUMENTATION_KAFKA_PRODUCER_ENABLED
+              value: "true"
+            - name: OTEL_INSTRUMENTATION_MONGODB_ENABLED
+              value: "true"
+            - name: OTEL_INSTRUMENTATION_MONGODB_CONTEXT_ENABLED
+              value: "true"
+            - name: OTEL_INSTRUMENTATION_MICROMETER_ENABLED
               value: "true"

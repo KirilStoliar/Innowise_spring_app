@@ -22,4 +22,6 @@ public class OrderFilterDto {
     private Integer page = 0;
     @Min(value = 1, message = "Page size must be at least 1")
     private Integer size = 10;
+
+    private String sort = "createdAt";
 }

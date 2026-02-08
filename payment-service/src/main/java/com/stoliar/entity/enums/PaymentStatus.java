@@ -1,13 +1,13 @@
 package com.stoliar.entity.enums;
 
 public enum PaymentStatus {
-    PENDING,      // Ожидает обработки
-    PROCESSING,   // В обработке
-    COMPLETED,    // Успешно завершен (SUCCESS)
-    FAILED,       // Не удалось
-    REFUNDED,     // Возвращен
-    CANCELLED,    // Отменен
-    DECLINED;     // Отклонен
+    PENDING,
+    PROCESSING,
+    COMPLETED,
+    FAILED,
+    REFUNDED,
+    CANCELLED,
+    DECLINED;
 
     public boolean isSuccess() {
         return this == COMPLETED;
