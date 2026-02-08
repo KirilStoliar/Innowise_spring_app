@@ -66,4 +66,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return null;
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Пропускаем внутренние эндпоинты и health checks
+        String path = request.getRequestURI();
+        return path.startsWith("/api/v1/users/internal/") ||
+                path.startsWith("/actuator/") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/v3/api-docs");
+    }
 }

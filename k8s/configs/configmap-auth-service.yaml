@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: innowise
+data:
+  application.yml: |
+    spring:
+      application:
+        name: auth-service
+      datasource:
+        url: ${DB_URL}
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: true
+        show-sql: false
+      liquibase:
+        enabled: true
+        change-log: classpath:db/changelog/db.changelog-master.yaml
+        
+    server:
+      port: 8081
+      address: 0.0.0.0
+    
+    app:
+      jwt:
+        secret: ${JWT_SECRET}
+        access-token-expiration: 900000
+        refresh-token-expiration: 604800000
+
+    api:
+      gateway:
+        internal-token: ${API_GATEWAY_INTERNAL_TOKEN}
+
+    user:
+      service:
+        url: ${USER_SERVICE_URL}
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "health,info,metrics"
+          base-path: /actuator
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+          db:
+            enabled: true
+      health:
+        defaults:
+          enabled: true

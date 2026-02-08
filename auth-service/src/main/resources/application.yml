@@ -11,7 +11,6 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: ${SHOW_SQL:false}
 
@@ -40,7 +39,17 @@ app:
 
 api:
   gateway:
-    internal-token:${API_GATEWAY_INTERNAL_TOKEN}
+    internal-token: ${API_GATEWAY_INTERNAL_TOKEN}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: "*"
 
 logging:
   level:

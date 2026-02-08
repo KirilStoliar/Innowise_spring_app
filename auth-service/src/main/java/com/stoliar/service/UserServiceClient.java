@@ -11,6 +11,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,7 +40,8 @@ public class UserServiceClient {
         requestBody.put("name", request.getName());
         requestBody.put("surname", request.getSurname());
         requestBody.put("email", request.getEmail());
-        requestBody.put("birthDate", request.getBirthDate().toString());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        requestBody.put("birthDate", request.getBirthDate().format(formatter));
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
@@ -72,13 +74,13 @@ public class UserServiceClient {
         }
     }
 
-    public ResponseEntity<ApiResponse<Void>> deleteUserForRollback(Long userId, String serviceName) {
+    public ResponseEntity<ApiResponse<Void>> deleteUserForRollback(Long userId) {
         String url = userServiceUrl + "/api/v1/users/internal/" + userId;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + apiGatewayInternalToken);
-        headers.set("X-Service-Name", serviceName);
+        headers.set("X-Service-Name", "api-gateway");
 
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 

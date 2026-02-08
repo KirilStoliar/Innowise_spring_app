@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+  namespace: innowise
+data:
+  application.yml: |
+    spring:
+      application:
+        name: payment-service
+      datasource:
+        url: ${DB_URL}
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: true
+        show-sql: false
+      liquibase:
+        enabled: true
+        change-log: classpath:db/changelog/changelog-master.yaml
+      kafka:
+        bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+        topics:
+          payment-events: ${KAFKA_TOPIC_PAYMENT_EVENTS:payment-events}
+          
+    server:
+      port: 8084
+      
+    external:
+      api:
+        url: https://www.random.org/integers

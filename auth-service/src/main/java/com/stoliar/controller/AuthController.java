@@ -123,7 +123,7 @@ public class AuthController {
 
         try {
             // Используем сервис для удаления пользователя
-            authService.deleteUserForRollback(id, serviceName);
+            authService.deleteUserForRollback(id);
             log.info("User deleted for rollback, id: {}", id);
             return ResponseEntity.ok(ApiResponse.success(null, "User deleted for rollback"));
         } catch (Exception e) {

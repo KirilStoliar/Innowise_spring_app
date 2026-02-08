@@ -97,7 +97,7 @@ public class AuthServiceImpl implements AuthService {
 
             try {
                 // Вызываем метод rollback
-                deleteUserForRollback(savedCredentialsId, internalToken);
+                deleteUserForRollback(savedCredentialsId);
                 log.info("Rollback completed successfully");
             } catch (Exception rollbackEx) {
                 log.error("Rollback also failed! Manual intervention required.", rollbackEx);
@@ -235,12 +235,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public ResponseEntity<ApiResponse<Void>> deleteUserForRollback(Long id, String internalToken) {
+    public ResponseEntity<ApiResponse<Void>> deleteUserForRollback(Long id) {
         log.info("Deleting user for rollback, id: {}", id);
 
         try {
             // 1. Удаляем пользователя в user-service
-            ResponseEntity<ApiResponse<Void>> userServiceResponse = userServiceClient.deleteUserForRollback(id, internalToken);
+            ResponseEntity<ApiResponse<Void>> userServiceResponse = userServiceClient.deleteUserForRollback(id);
 
             if (!userServiceResponse.getStatusCode().is2xxSuccessful()) {
                 log.error("Failed to delete user in user-service. Status: {}", userServiceResponse.getStatusCode());
