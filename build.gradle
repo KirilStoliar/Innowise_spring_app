@@ -36,6 +36,14 @@ subprojects {
     tasks.named('test') {
         useJUnitPlatform()
     }
+
+    configurations.all {
+        resolutionStrategy {
+            force 'com.github.docker-java:docker-java-api:3.4.0'
+            force 'com.github.docker-java:docker-java-core:3.4.0'
+            force 'com.github.docker-java:docker-java-transport-httpclient5:3.4.0'
+        }
+    }
 }
 
 project(':user-service') {
