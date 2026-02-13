@@ -19,15 +19,6 @@ jobs:
       actions: read
       contents: read
 
-    services:
-      docker:
-        image: docker:24.0-dind
-        options: --privileged
-
-    env:
-      DOCKER_HOST: tcp://localhost:2375
-      DOCKER_TLS_CERTDIR: ""
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,15 +30,14 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Wait for Docker
-        run: |
-          for i in {1..30}; do
-            docker info && break
-            sleep 2
-          done
-
       - name: Make gradlew executable
         run: chmod +x gradlew
+
+      - name: Remove testcontainers override
+        run: rm -f ~/.testcontainers.properties
+
+      - name: Verify Docker
+        run: docker version
 
       # Собираем все модули
       - name: Build all modules
