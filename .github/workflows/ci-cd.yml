@@ -58,6 +58,9 @@ jobs:
         run: ./gradlew :user-service:integration-test
         env:
           USE_TESTCONTAINERS: true
+          TESTCONTAINERS_RYUK_DISABLED: true
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_CLIENT_STRATEGY: org.testcontainers.dockerclient.UnixSocketClientProviderStrategy
 
       - name: Run tests for order-service
         run: ./gradlew :order-service:test --stacktrace
