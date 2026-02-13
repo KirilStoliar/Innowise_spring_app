@@ -43,6 +43,12 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
 
+      - name: Update Docker client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+          docker --version
+
       - name: Start Docker daemon
         run: |
           sudo systemctl start docker || true
@@ -65,7 +71,7 @@ jobs:
           USE_TESTCONTAINERS: true
 
       - name: Run tests for order-service
-        run: ./gradlew :order-service:test -Duse.testcontainers=true --stacktrace
+        run: ./gradlew :order-service:test --stacktrace
         env:
           USE_TESTCONTAINERS: true
 
@@ -73,11 +79,6 @@ jobs:
         run: ./gradlew :payment-service:test
         env:
           USE_TESTCONTAINERS: true
-
-      - name: Run unit tests for payment-service
-        run: ./gradlew :payment-service:test -Duse.testcontainers=true --stacktrace
-        env:
-          EXTERNAL_API_URL: http://localhost:8080/integers
 
       - name: Setup Node.js for frontend
         uses: actions/setup-node@v4
@@ -100,11 +101,16 @@ jobs:
         env:
           CI: true
 
+      - name: Run frontend linting
+        run: |
+          cd frontend/ui
+          npm run lint
+
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
 
       - name: Test Report
-        uses: dorny/test-reporter@v1.9.0
+        uses: dorny/test-reporter@v1
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         with:
           name: Test Results
@@ -156,6 +162,19 @@ jobs:
           API_GATEWAY_INTERNAL_TOKEN: ${{ secrets.API_GATEWAY_INTERNAL_TOKEN }}
           GATEWAY_ADMIN_EMAIL: ${{ secrets.GATEWAY_ADMIN_EMAIL }}
           GATEWAY_ADMIN_PASSWORD: ${{ secrets.GATEWAY_ADMIN_PASSWORD }}
+
+      - name: Install frontend dependencies for analysis
+        run: |
+          cd frontend/ui
+          npm ci
+        env:
+          CI: true
+
+      - name: Run frontend code quality checks
+        run: |
+          cd frontend/ui
+          npm run lint
+          npm run build -- --configuration production
 
       - name: Debug - Check reports exist
         run: |
@@ -341,14 +360,13 @@ jobs:
           cd frontend/ui
           npm audit --audit-level=moderate || true
 
-      - name: Run Trivy vulnerability scanner on backend
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
-          output: 'trivy-backend-results.sarif'
-          scanners: 'vuln,config,secret'
+          output: 'trivy-results.sarif'
 
       - name: Run Trivy vulnerability scanner on frontend
         uses: aquasecurity/trivy-action@master
@@ -359,16 +377,14 @@ jobs:
           output: 'trivy-frontend-results.sarif'
           scanners: 'vuln,config,secret'
 
-      - name: Upload backend Trivy scan results
+      - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
         if: always() && github.event_name == 'pull_request'
         with:
-          sarif_file: 'trivy-backend-results.sarif'
-          category: 'trivy-backend'
+          sarif_file: 'trivy-results.sarif'
 
       - name: Upload frontend Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
         if: always() && github.event_name == 'pull_request'
         with:
           sarif_file: 'trivy-frontend-results.sarif'
-          category: 'trivy-frontend'
