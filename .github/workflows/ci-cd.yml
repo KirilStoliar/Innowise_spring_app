@@ -57,6 +57,7 @@ jobs:
         run: ./gradlew :user-service:integration-test
         env:
           USE_TESTCONTAINERS: true
+          TESTCONTAINERS_RYUK_DISABLED: true
 
       - name: Run tests for order-service
         run: ./gradlew :order-service:test --stacktrace

@@ -59,9 +59,9 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
 
     // TestContainers
-    testImplementation 'org.testcontainers:testcontainers'
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:testcontainers:1.19.8'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.8'
+    testImplementation 'org.testcontainers:postgresql:1.19.8'
 
     // Metrics
     implementation 'io.micrometer:micrometer-registry-prometheus'
