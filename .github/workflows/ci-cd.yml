@@ -58,6 +58,8 @@ jobs:
         env:
           USE_TESTCONTAINERS: true
           TESTCONTAINERS_RYUK_DISABLED: true
+          DOCKER_HOST: unix:///var/run/docker.sock
+          DOCKER_API_VERSION: 1.44
 
       - name: Run tests for order-service
         run: ./gradlew :order-service:test --stacktrace
