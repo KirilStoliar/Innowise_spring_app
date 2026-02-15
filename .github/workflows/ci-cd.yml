@@ -22,6 +22,7 @@ jobs:
     env:
       TESTCONTAINERS_RYUK_DISABLED: true
       TESTCONTAINERS_CHECKS_DISABLE: true
+      DOCKER_API_VERSION: ""
 
     steps:
       - name: Checkout code
@@ -43,6 +44,9 @@ jobs:
       # Собираем все модули
       - name: Build all modules
         run: ./gradlew build -x test
+
+      - name: Unset Docker API version
+        run: unset DOCKER_API_VERSION
 
       # Тестируем каждый модуль отдельно
       - name: Run unit tests for user-service
