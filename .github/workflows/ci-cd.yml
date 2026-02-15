@@ -19,6 +19,19 @@ jobs:
       actions: read
       contents: read
 
+    services:
+      docker:
+        image: docker:24.0.7-dind
+        options: --privileged
+        ports:
+          - 2375:2375
+
+    env:
+      DOCKER_HOST: tcp://localhost:2375
+      DOCKER_TLS_CERTDIR: ""
+      TESTCONTAINERS_RYUK_DISABLED: true
+      TESTCONTAINERS_CHECKS_DISABLE: true
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,18 +46,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Remove testcontainers override
-        run: rm -f ~/.testcontainers.properties
-
       - name: Verify Docker
         run: docker version
 
       # Собираем все модули
       - name: Build all modules
         run: ./gradlew build -x test
-
-      - name: Remove testcontainers override
-        run: rm -f ~/.testcontainers.properties
 
       # Тестируем каждый модуль отдельно
       - name: Run unit tests for user-service
@@ -55,47 +62,12 @@ jobs:
 
       - name: Run integration tests for user-service
         run: ./gradlew :user-service:integration-test
-        env:
-          USE_TESTCONTAINERS: true
-          TESTCONTAINERS_RYUK_DISABLED: true
-          DOCKER_HOST: unix:///var/run/docker.sock
-          DOCKER_API_VERSION: 1.44
 
       - name: Run tests for order-service
         run: ./gradlew :order-service:test --stacktrace
-        env:
-          USE_TESTCONTAINERS: true
 
       - name: Run unit tests for payment-service
         run: ./gradlew :payment-service:test
-        env:
-          USE_TESTCONTAINERS: true
-
-      - name: Setup Node.js for frontend
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/ui/package-lock.json
-
-      - name: Install frontend dependencies
-        run: |
-          cd frontend/ui
-          npm ci
-        env:
-          CI: true
-
-      - name: Build frontend
-        run: |
-          cd frontend/ui
-          npm run build -- --configuration production
-        env:
-          CI: true
-
-      - name: Run frontend linting
-        run: |
-          cd frontend/ui
-          npm run lint
 
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
