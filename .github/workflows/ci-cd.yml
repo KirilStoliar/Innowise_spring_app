@@ -19,16 +19,7 @@ jobs:
       actions: read
       contents: read
 
-    services:
-      docker:
-        image: docker:24.0.7-dind
-        options: --privileged
-        ports:
-          - 2375:2375
-
     env:
-      DOCKER_HOST: tcp://localhost:2375
-      DOCKER_TLS_CERTDIR: ""
       TESTCONTAINERS_RYUK_DISABLED: true
       TESTCONTAINERS_CHECKS_DISABLE: true
 
