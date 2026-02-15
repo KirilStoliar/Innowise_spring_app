@@ -1,11 +1,12 @@
 HELP.md
 .env
 .gradle
-user-service/.env
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+otel-agent-rendered.yaml
+otel-java-agent
 
 ### STS ###
 .apt_generated

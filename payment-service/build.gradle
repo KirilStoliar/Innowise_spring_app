@@ -49,4 +49,13 @@ dependencies {
     // Lombok (test)
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // Metrics
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Kafka tracing
+    implementation 'io.micrometer:micrometer-observation'
+
+    // Loki
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 }

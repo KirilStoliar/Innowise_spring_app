@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: innowise
+
+resources:
+  - monitoring/otel-configmap.yaml
+  - services/api-gateway
+  - services/auth-service
+  - services/order-service
+  - services/payment-service
+  - services/user-service
+
+patches:
+  - path: monitoring/java-otel-patch-api-gateway.yaml
+  - path: monitoring/java-otel-patch-auth-service.yaml
+  - path: monitoring/java-otel-patch-order-service.yaml
+  - path: monitoring/java-otel-patch-payment-service.yaml
+  - path: monitoring/java-otel-patch-user-service.yaml

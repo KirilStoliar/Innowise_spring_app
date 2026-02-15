@@ -38,3 +38,10 @@ data:
     external:
       api:
         url: https://www.random.org/integers
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+          base-path: /actuator

@@ -48,3 +48,10 @@ data:
         instances:
           userService:
             base-config: default
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+          base-path: /actuator

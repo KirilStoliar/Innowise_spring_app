@@ -36,3 +36,10 @@ data:
     app:
       jwt:
         secret: ${JWT_SECRET}
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+          base-path: /actuator

@@ -63,6 +63,8 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(paymentEventConsumerFactory());
         factory.setConcurrency(3); // Количество потоков для обработки
 
+        factory.setRecordInterceptor(
+                new KafkaMdcConfig.TraceMdcRecordInterceptor<>());
         factory.getContainerProperties()
                 .setAckMode(ContainerProperties.AckMode.MANUAL);
 

@@ -69,4 +69,14 @@ dependencies {
 
     // AssertJ
     testImplementation 'org.assertj:assertj-core:3.24.2'
+
+    // Metrics
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Kafka tracing
+    implementation 'io.micrometer:micrometer-observation'
+    implementation 'io.opentelemetry:opentelemetry-api:1.39.0'
+
+    // Loki
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
 }

@@ -15,6 +15,8 @@ data:
           discovery:
             locator:
               enabled: false
+      reactor:
+        context-propagation: auto
     gateway:
       auth:
         url: http://auth-service:8081
@@ -32,3 +34,10 @@ data:
     gateway-admin:
       email: ${GATEWAY_ADMIN_EMAIL:admin@example.com}
       password: ${GATEWAY_ADMIN_PASSWORD:admin123}
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+          base-path: /actuator

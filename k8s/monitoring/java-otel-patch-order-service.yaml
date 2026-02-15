@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: innowise
+spec:
+  template:
+    spec:
+      volumes:
+        - name: otel-agent
+          emptyDir: {}
+
+      initContainers:
+        - name: download-otel-agent
+          image: curlimages/curl:8.5.0
+          command:
+            - sh
+            - -c
+            - |
+              curl -L https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.10.0/opentelemetry-javaagent.jar \
+              -o /otel/otel.jar
+          volumeMounts:
+            - name: otel-agent
+              mountPath: /otel
+
+      containers:
+        - name: order-service
+          volumeMounts:
+            - name: otel-agent
+              mountPath: /otel
+
+          envFrom:
+            - configMapRef:
+                name: otel-java-agent-config
+
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/otel/otel.jar"
+            - name: OTEL_SERVICE_NAME
+              value: "order-service"
+            - name: OTEL_INSTRUMENTATION_LOGGING_MDC_ENABLED
+              value: "true"
+            - name: OTEL_INSTRUMENTATION_LOGGING_LOGBACK_ENABLED
+              value: "true"
+            - name: OTEL_INSTRUMENTATION_KAFKA_CONSUMER_ENABLED
+              value: "true"
