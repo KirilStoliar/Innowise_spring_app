@@ -36,6 +36,14 @@ subprojects {
     tasks.named('test') {
         useJUnitPlatform()
     }
+
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == "org.testcontainers") {
+                details.useVersion "1.19.8"
+            }
+        }
+    }
 }
 
 project(':user-service') {

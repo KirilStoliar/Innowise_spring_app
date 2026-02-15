@@ -47,7 +47,6 @@ dependencies {
     testImplementation 'io.github.resilience4j:resilience4j-test:2.2.0'
 
     // TestContainers для интеграционных тестов
-    testImplementation platform("org.testcontainers:testcontainers-bom:1.19.8")
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:junit-jupiter'
 
