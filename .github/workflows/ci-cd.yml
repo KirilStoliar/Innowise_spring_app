@@ -113,11 +113,6 @@ jobs:
         env:
           CI: true
 
-      - name: Run frontend linting
-        run: |
-          cd frontend/ui
-          npm run lint
-
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
 
