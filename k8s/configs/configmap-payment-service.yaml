@@ -8,19 +8,10 @@ data:
     spring:
       application:
         name: payment-service
-      datasource:
-        url: ${DB_URL}
-        username: ${DB_USERNAME}
-        password: ${DB_PASSWORD}
-        driver-class-name: org.postgresql.Driver
-      jpa:
-        hibernate:
-          ddl-auto: validate
-        properties:
-          hibernate:
-            dialect: org.hibernate.dialect.PostgreSQLDialect
-            format_sql: true
-        show-sql: false
+      data:
+        mongodb:
+          uri: ${MONGODB_URI}
+          auto-index-creation: true
       liquibase:
         enabled: true
         change-log: classpath:db/changelog/changelog-master.yaml
@@ -29,15 +20,29 @@ data:
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.add.type.headers: false
+            spring.json.type.mapping: paymentEvent:com.stoliar.dto.event.PaymentEvent
         topics:
           payment-events: ${KAFKA_TOPIC_PAYMENT_EVENTS:payment-events}
-          
+    
     server:
       port: 8084
-      
+      servlet:
+        context-path: /
+    
+    app:
+      jwt:
+        secret: ${JWT_SECRET}
+    
     external:
       api:
         url: https://www.random.org/integers
+    
+    payment:
+      service:
+        fallback:
+          enabled: true
     
     management:
       endpoints:
@@ -45,3 +50,39 @@ data:
           exposure:
             include: health,info,metrics,prometheus
           base-path: /actuator
+          path-mapping:
+            health: health
+            info: info
+            metrics: metrics
+            prometheus: prometheus
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+          tags:
+            application: payment-service
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+        prometheus:
+          enabled: true
+      health:
+        mongo:
+          enabled: true
+      tracing:
+        enabled: true
+      observations:
+        key-values:
+          application: ${spring.application.name}
+    
+    logging:
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n [trace_id=%X{trace_id:-}, span_id=%X{span_id:-}]%n"
+      level:
+        com.stoliar: DEBUG
+        io.opentelemetry: DEBUG
+        org.springframework.web: DEBUG
+        org.springframework.security: INFO
+    

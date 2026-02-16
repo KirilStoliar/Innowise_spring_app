@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.validator.constraints.Email;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -189,5 +190,20 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to delete user: " + e.getMessage()));
         }
+    }
+
+    @Operation(summary = "Get user ID by email",
+            description = "Retrieve user ID by email (ADMIN only)")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User ID retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")})
+    @GetMapping("/email/{email}")
+    public ResponseEntity<ApiResponse<Long>> getUserIdByEmail(
+            @Parameter(description = "User email", required = true)
+            @PathVariable @Email String email) {
+
+        log.info("Getting user ID by email: {}", email);
+        Long userId = userService.getUserIdByEmail(email);
+        return ResponseEntity.ok(ApiResponse.success(userId, "User ID retrieved successfully"));
     }
 }

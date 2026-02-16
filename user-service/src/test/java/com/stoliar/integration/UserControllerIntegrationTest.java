@@ -201,4 +201,15 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(delete("/api/v1/users/{id}", testUser.getId()))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    void getUserByEmail_WhenUserExists_ShouldReturnUserId() throws Exception {
+        // Given - testUser уже создан в setUp
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/users/email/{email}", testUser.getEmail()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data", is(testUser.getId().intValue())));
+    }
 }

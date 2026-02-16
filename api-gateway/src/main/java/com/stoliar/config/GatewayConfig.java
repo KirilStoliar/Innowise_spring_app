@@ -26,7 +26,6 @@ public class GatewayConfig {
     @Value("${gateway.payment.url:http://payment-service:8084}")
     private String paymentServiceUrl;
 
-    // adminAuthFilter используется только для /api/v1/auth/register чтобы добавить admin token
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder,
                                InternalTokenGatewayFilter internalTokenFilter,

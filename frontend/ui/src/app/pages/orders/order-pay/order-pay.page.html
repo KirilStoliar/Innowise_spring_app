@@ -1,0 +1,197 @@
+<div class="min-h-screen bg-gray-50 p-6">
+  <div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center gap-4 mb-6">
+      <a routerLink="/orders" class="p-2 hover:bg-gray-200 rounded-lg transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </a>
+      <h1 class="text-3xl font-bold text-gray-900">Pay Order</h1>
+    </div>
+
+    @if (loading()) {
+      <div class="text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-blue-600"></div>
+      </div>
+    }
+
+    @if (error()) {
+      <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+        {{ error() }}
+      </div>
+    }
+
+    @if (success()) {
+      <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6">
+        {{ success() }}
+      </div>
+    }
+
+    @if (order()) {
+      <!-- Order Summary -->
+      <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
+        <div class="space-y-3">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Order ID:</span>
+            <span class="font-medium">#{{ order()!.id }}</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-gray-600">Status:</span>
+            <span [class]="getStatusClass(order()!.status)" class="px-3 py-1 rounded-full text-xs font-medium">
+              {{ order()!.status }}
+            </span>
+          </div>
+
+          <div class="border-t border-gray-200 pt-3 mt-3">
+            @for (item of order()!.orderItems; track item.id) {
+              <div class="flex justify-between text-sm mb-2">
+                <span class="text-gray-600">{{ item.itemName }} × {{ item.quantity }}</span>
+                <span class="font-medium">${{ (item.itemPrice * item.quantity).toFixed(2) }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between">
+            <span class="text-lg font-semibold text-gray-900">Total:</span>
+            <span class="text-2xl font-bold text-gray-900">${{ order()!.totalPrice.toFixed(2) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Method -->
+      <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-gray-900">Payment Method</h2>
+
+          <button
+            type="button"
+            (click)="openAddCard()"
+            class="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            + Add Card
+          </button>
+        </div>
+
+        @if (paymentCards().length > 0) {
+          <div class="space-y-3">
+            @for (card of paymentCards(); track card.id) {
+              <label
+                class="flex items-center p-4 border-1 rounded-lg cursor-pointer hover:bg-gray-50 transition"
+                [class.border-blue-600]="selectedCardId === card.id"
+                [class.bg-blue-50]="selectedCardId === card.id"
+              >
+                <input
+                  type="radio"
+                  name="card"
+                  [value]="card.id"
+                  [(ngModel)]="selectedCardId"
+                  class="mr-3"
+                />
+                <div class="flex-1">
+                  <p class="font-medium text-gray-900">{{ card.holder }}</p>
+                  <p class="text-sm text-gray-600">•••• {{ card.number.slice(-4) }}</p>
+                  <p class="text-xs text-gray-500">Expires: {{ card.expirationDate }}</p>
+                </div>
+                @if (card.active) {
+                  <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+                }
+              </label>
+            }
+          </div>
+        } @else {
+          <div class="text-center py-8 text-gray-500">
+            <p class="mb-4">No payment cards found. Please add a payment method first.</p>
+            <button type="button" (click)="openAddCard()" class="text-blue-600 hover:underline">
+              + Add Payment Card
+            </button>
+          </div>
+        }
+
+        <!-- Add card form -->
+        @if (addCardOpen()) {
+          <div class="mt-6 border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Add payment card</h3>
+
+            @if (addCardError()) {
+              <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 mb-4">
+                {{ addCardError() }}
+              </div>
+            }
+
+            <div class="grid grid-cols-1 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Card number</label>
+                <input
+                  type="text"
+                  [(ngModel)]="addCardForm.number"
+                  (input)="onCardNumberInput()"
+                  placeholder="1111222233334444"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">16–19 digits</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Card holder</label>
+                <input
+                  type="text"
+                  [(ngModel)]="addCardForm.holder"
+                  placeholder="IVAN IVANOV"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Expiration date</label>
+                <input
+                  type="date"
+                  [(ngModel)]="addCardForm.expirationDate"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">Backend expects yyyy-MM-dd</p>
+              </div>
+            </div>
+
+            <div class="flex gap-3 mt-5">
+              <button
+                type="button"
+                (click)="createCard()"
+                [disabled]="addCardLoading()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+              >
+                {{ addCardLoading() ? 'Saving...' : 'Save card' }}
+              </button>
+              <button
+                type="button"
+                (click)="closeAddCard()"
+                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Pay Button -->
+      <div class="flex gap-3">
+        <button
+          (click)="pay()"
+          [disabled]="!selectedCardId || processing()"
+          class="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-lg"
+        >
+          {{ processing() ? 'Processing...' : 'Pay $' + order()!.totalPrice.toFixed(2) }}
+        </button>
+        <a
+          routerLink="/orders"
+          class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+        >
+          Cancel
+        </a>
+      </div>
+    }
+  </div>
+</div>

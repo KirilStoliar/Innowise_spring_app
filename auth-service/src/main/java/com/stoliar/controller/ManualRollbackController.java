@@ -24,27 +24,27 @@ public class ManualRollbackController {
     private final AuthService authService;
     private static final int index = 7;
 
-    @Operation(summary = "Delete user for rollback", 
-               description = "Удаление пользователя при откате операции (только ADMIN)")
+    @Operation(summary = "Delete user for rollback",
+            description = "Удаление пользователя при откате операции (только ADMIN)")
     @DeleteMapping("/{credentialsId}")
     public ResponseEntity<ApiResponse<Void>> deleteUserForRollback(
             @PathVariable Long credentialsId,
             HttpServletRequest request) {
-        
+
         String token = getTokenFromRequest(request);
         if (!StringUtils.hasText(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Authorization token is required"));
         }
-        
+
         log.info("Manual rollback requested for credentials id: {}", credentialsId);
-        
+
         authService.deleteUserAsAdmin(credentialsId, token);
-        
+
         return ResponseEntity.ok(
                 ApiResponse.success(null, "Rollback completed successfully"));
     }
-    
+
     private String getTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {

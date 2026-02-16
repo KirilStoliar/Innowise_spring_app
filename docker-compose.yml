@@ -109,6 +109,7 @@ services:
     environment:
       - MONGODB_URI=mongodb://payment-mongodb:27017/payment_service
       - LIQUIBASE_ENABLED=${LIQUIBASE_ENABLED}
+      - JWT_SECRET=${JWT_SECRET}
       # Kafka configuration for Docker
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC_PAYMENT_EVENTS=payment-events
@@ -276,6 +277,18 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       DYNAMIC_CONFIG_ENABLED: "true"
+    networks:
+      - innowise-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend/ui
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT}:80"
+    depends_on:
+      - api-gateway
     networks:
       - innowise-network
     restart: unless-stopped

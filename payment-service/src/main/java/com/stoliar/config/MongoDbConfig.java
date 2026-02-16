@@ -2,6 +2,7 @@ package com.stoliar.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
 
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
 
+@Profile("!test")
 @Configuration
 public class MongoDbConfig {
 

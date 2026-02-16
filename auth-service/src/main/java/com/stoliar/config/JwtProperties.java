@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 @Data
 public class JwtProperties {
     private String secret;
-    @Value("${app.jwt.access-token-expiration:900000}")
-    private long accessTokenExpiration; // 15 минут
-    @Value("${app.jwt.refresh-token-expiration:604800000}")
+    @Value("${app.jwt.access-token-expiration}")
+    private long accessTokenExpiration; // 24 часа
+    @Value("${app.jwt.refresh-token-expiration}")
     private long refreshTokenExpiration; // 7 дней
 }

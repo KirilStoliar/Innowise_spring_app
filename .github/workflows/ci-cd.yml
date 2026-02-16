@@ -9,6 +9,8 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
+  TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+  TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
 jobs:
   build:
@@ -19,111 +21,9 @@ jobs:
       actions: read
       contents: read
 
-#    services:
-#      postgres:
-#        image: postgres:15-alpine
-#        env:
-#          POSTGRES_DB: ${{ secrets.CI_POSTGRES_DB }}
-#          POSTGRES_USER: ${{ secrets.CI_DB_USERNAME }}
-#          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-#        options: >-
-#          --health-cmd pg_isready
-#          --health-interval 10s
-#          --health-timeout 5s
-#          --health-retries 5
-#        ports:
-#          - 5432:5432
-#
-#      redis:
-#        image: redis:7-alpine
-#        options: >-
-#          --health-cmd "redis-cli ping"
-#          --health-interval 10s
-#          --health-timeout 5s
-#          --health-retries 5
-#        ports:
-#          - 6379:6379
-#
-#      wiremock:
-#        image: wiremock/wiremock:3.3.1
-#        options: >-
-#          --health-cmd "curl -f http://localhost:8080/__admin || exit 1"
-#          --health-interval 10s
-#          --health-timeout 5s
-#          --health-retries 5
-#        ports:
-#          - 8080:8080
-#
-#      kafka:
-#        image: confluentinc/cp-kafka:7.4.0
-#        env:
-#          KAFKA_BROKER_ID: 1
-#          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-#          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-#          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-#          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-#          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-#          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-#        ports:
-#          - 9092:9092
-#
-#      zookeeper:
-#        image: confluentinc/cp-zookeeper:7.4.0
-#        env:
-#          ZOOKEEPER_CLIENT_PORT: 2181
-#          ZOOKEEPER_TICK_TIME: 2000
-#        ports:
-#          - 2181:2181
-#        options: >-
-#          --health-cmd="echo ruok | nc localhost 2181 || exit 1"
-#          --health-interval=10s
-#          --health-timeout=5s
-#          --health-retries=3
-#
-#      mongodb:
-#        image: mongo:7.0
-#        ports:
-#          - "27017:27017"
-#        options: >-
-#          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
-#          --health-interval 10s
-#          --health-timeout 5s
-#          --health-retries 5
-#        env:
-#          MONGO_INITDB_DATABASE: test_payment
-
-      kafka:
-        image: confluentinc/cp-kafka:7.4.0
-        env:
-          KAFKA_BROKER_ID: 1
-          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-        ports:
-          - 9092:9092
-
-      zookeeper:
-        image: confluentinc/cp-zookeeper:7.4.0
-        env:
-          ZOOKEEPER_CLIENT_PORT: 2181
-          ZOOKEEPER_TICK_TIME: 2000
-        ports:
-          - 2181:2181
-        options: >-
-          --health-cmd="echo ruok | nc localhost 2181 || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -132,65 +32,86 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
-      - name: Validate Gradle wrapper
-        run: ./gradlew help
-
-      # Устанавливаем Docker для Testcontainers
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
-
-      - name: Start Docker daemon
+      - name: Setup Testcontainers Cloud
         run: |
-          sudo systemctl start docker || true
-          sudo chmod 666 /var/run/docker.sock || true
+          curl -fsSL https://get.testcontainers.cloud/bash | sh
+          echo "Testcontainers Cloud configured successfully"
+          echo "TC_CLOUD_TOKEN is set: ${{ secrets.TC_CLOUD_TOKEN != '' }}"
+        env:
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+
+      - name: Verify Testcontainers Cloud
+        run: |
+          echo "Checking Testcontainers Cloud configuration..."
+          echo "TC_CLOUD_TOKEN exists: ${{ secrets.TC_CLOUD_TOKEN != '' }}"
+          echo "DOCKER_HOST: $DOCKER_HOST"
+          echo "TESTCONTAINERS_CLOUD_TOKEN: ${#TESTCONTAINERS_CLOUD_TOKEN} chars"
 
       # Собираем все модули
       - name: Build all modules
         run: ./gradlew build -x test
+        env:
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       # Тестируем каждый модуль отдельно
       - name: Run unit tests for user-service
         run: ./gradlew :user-service:test
+        env:
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run unit tests for auth-service
         run: ./gradlew :auth-service:test
+        env:
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run integration tests for user-service
         run: ./gradlew :user-service:integration-test
         env:
           USE_TESTCONTAINERS: true
-#          DB_URL: jdbc:postgresql://localhost:5432/test_db
-#          DB_USERNAME: test_user
-#          DB_PASSWORD: test_password
-#          REDIS_HOST: localhost
-#          REDIS_PORT: 6379
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run tests for order-service
-        run: ./gradlew :order-service:test -Duse.testcontainers=true --stacktrace
+        run: ./gradlew :order-service:test --stacktrace
         env:
           USE_TESTCONTAINERS: true
-#          DB_URL: jdbc:postgresql://localhost:5432/${{ secrets.CI_POSTGRES_DB }}
-#          DB_USERNAME: ${{ secrets.CI_DB_USERNAME }}
-#          DB_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
-#          WIREMOCK_SERVER_PORT: 8080  # Порт WireMock
-#          USER_SERVICE_URL: http://localhost:8080  # URL для мокирования user-service
-#          JWT_SECRET: test-secret-key-for-jwt-signing-in-tests-only
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run unit tests for payment-service
         run: ./gradlew :payment-service:test
         env:
           USE_TESTCONTAINERS: true
-#          EXTERNAL_API_URL: http://localhost:8080/integers
-#          MONGODB_URI: mongodb://localhost:27017/test_payment
-#          LIQUIBASE_ENABLED: false
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
-      - name: Run unit tests for payment-service
-        run: ./gradlew :payment-service:test -Duse.testcontainers=true --stacktrace
+      - name: Setup Node.js for frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend/ui
+          npm ci
         env:
-          EXTERNAL_API_URL: http://localhost:8080/integers
+          CI: true
+
+      - name: Build frontend
+        run: |
+          cd frontend/ui
+          npm run build -- --configuration production
+        env:
+          CI: true
 
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
@@ -230,28 +151,12 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Set up Docker для Testcontainers
-        uses: docker/setup-buildx-action@v3
-
-      - name: Start Docker daemon
+      - name: Setup Testcontainers Cloud
         run: |
-          sudo systemctl start docker || true
-          sudo chmod 666 /var/run/docker.sock || true
-
-#      - name: Install MongoDB for tests
-#        run: |
-#          sudo apt-get update
-#          sudo apt-get install -y gnupg wget
-#          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
-#          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-#          sudo apt-get update
-#          sudo apt-get install -y mongodb-org
-#
-#      - name: Start MongoDB for tests
-#        run: |
-#          sudo systemctl start mongod
-#          sleep 5
-#          mongosh --eval "db.runCommand({ping: 1})"
+          curl -fsSL https://get.testcontainers.cloud/bash | sh
+        env:
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Build and generate coverage reports
         run: |
@@ -263,15 +168,20 @@ jobs:
           API_GATEWAY_INTERNAL_TOKEN: ${{ secrets.API_GATEWAY_INTERNAL_TOKEN }}
           GATEWAY_ADMIN_EMAIL: ${{ secrets.GATEWAY_ADMIN_EMAIL }}
           GATEWAY_ADMIN_PASSWORD: ${{ secrets.GATEWAY_ADMIN_PASSWORD }}
-          # Для payment-service
-          EXTERNAL_API_URL: http://localhost:8080/integers
-          SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-          # Для других сервисов
-#          DB_URL: jdbc:postgresql://localhost:5432/test_db
-#          DB_USERNAME: test_user
-#          DB_PASSWORD: test_password
-#          REDIS_HOST: localhost
-#          REDIS_PORT: 6379
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+          TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+
+      - name: Install frontend dependencies for analysis
+        run: |
+          cd frontend/ui
+          npm ci
+        env:
+          CI: true
+
+      - name: Run frontend code quality checks
+        run: |
+          cd frontend/ui
+          npm run build -- --configuration production
 
       - name: Debug - Check reports exist
         run: |
@@ -389,6 +299,45 @@ jobs:
             GATEWAY_ADMIN_EMAIL=${{ secrets.GATEWAY_ADMIN_EMAIL }}
             GATEWAY_ADMIN_PASSWORD=${{ secrets.GATEWAY_ADMIN_PASSWORD }}
 
+      - name: Setup Node.js for frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend/ui
+          npm ci
+        env:
+          CI: true
+
+      - name: Build frontend for Docker
+        run: |
+          cd frontend/ui
+          npm run build -- --configuration production
+        env:
+          CI: true
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/ui
+          file: ./frontend/ui/Dockerfile
+          push: false  # Только сборка без публикации
+          tags: |
+            frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_NAME=ui
+
+      - name: Verify Docker images
+        run: |
+          echo "=== Docker images built ==="
+          docker images
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -403,16 +352,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Set up Node.js for frontend security scan
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies for security scan
+        run: |
+          cd frontend/ui
+          npm ci
+
+      - name: Run npm audit for frontend
+        run: |
+          cd frontend/ui
+          npm audit --audit-level=moderate || true
+
+      - name: Run Trivy vulnerability scanner on backend
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-backend-results.sarif'
+          scanners: 'vuln,config,secret'
+        continue-on-error: true
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && github.event_name == 'pull_request'
+      - name: Run Trivy vulnerability scanner on frontend
+        uses: aquasecurity/trivy-action@master
         with:
-          sarif_file: 'trivy-results.sarif'
+          scan-type: 'fs'
+          scan-ref: './frontend/ui'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+          scanners: 'vuln,config,secret'
+        continue-on-error: true
+
+      - name: Upload backend Trivy scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && github.event_name == 'pull_request' && hashFiles('trivy-backend-results.sarif') != ''
+        with:
+          sarif_file: 'trivy-backend-results.sarif'
+          category: 'trivy-backend'
+
+      - name: Upload frontend Trivy scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && github.event_name == 'pull_request' && hashFiles('trivy-frontend-results.sarif') != ''
+        with:
+          sarif_file: 'trivy-frontend-results.sarif'
+          category: 'trivy-frontend'

@@ -15,8 +15,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addConverter(String.class, LocalDateTime.class, source -> {
             // Убираем возможные проблемы с URL encoding
             String cleanSource = source.replace("%3A", ":");
-            
-            // Пробуем разные форматы
+
             try {
                 return LocalDateTime.parse(cleanSource, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             } catch (Exception e1) {

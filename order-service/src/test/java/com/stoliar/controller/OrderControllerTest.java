@@ -7,6 +7,8 @@ import com.stoliar.dto.order.OrderResponseDto;
 import com.stoliar.dto.orderItem.OrderItemCreateDto;
 import com.stoliar.entity.Order;
 import com.stoliar.service.OrderService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -15,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(OrderController.class)
 @Import(TestSecurityConfig.class)
+@ActiveProfiles("test")
 public class OrderControllerTest {
 
     @Autowired
@@ -38,6 +42,16 @@ public class OrderControllerTest {
 
     @MockitoBean
     private OrderService orderServiceImpl;
+
+    @BeforeEach
+    void setUp() {
+        TestSecurityConfig.setAuthentication(1L, "ADMIN");
+    }
+
+    @AfterEach
+    void tearDown() {
+        TestSecurityConfig.clearAuthentication();
+    }
 
     @Test
     void createOrder_ValidRequest_ShouldReturnCreated() throws Exception {
@@ -59,8 +73,8 @@ public class OrderControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/api/v1/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(createDto)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createDto)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.userId").value(1L));
@@ -94,17 +108,17 @@ public class OrderControllerTest {
         order2.setUserId(1L);
 
         Page<OrderResponseDto> page = new PageImpl<>(
-            Arrays.asList(order1, order2),
-            PageRequest.of(0, 10),
-            2
+                Arrays.asList(order1, order2),
+                PageRequest.of(0, 10),
+                2
         );
 
         when(orderServiceImpl.getOrdersByUserId(eq(1L), any())).thenReturn(page);
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/orders/user/1")
-                .param("page", "0")
-                .param("size", "10"))
+                        .param("page", "0")
+                        .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(2))
                 .andExpect(jsonPath("$.totalElements").value(2));

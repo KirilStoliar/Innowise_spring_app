@@ -47,10 +47,8 @@ public abstract class BaseIntegrationTest {
 
     @DynamicPropertySource
     static void dynamicProperties(DynamicPropertyRegistry registry) {
-        // MongoDB свойства
         registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
 
-        // Kafka свойства
         registry.add("spring.kafka.bootstrap-servers",
                 () -> String.format("%s:%s",
                         kafkaContainer.getHost(),
@@ -59,10 +57,8 @@ public abstract class BaseIntegrationTest {
         registry.add("external.api.url",
                 () -> "http://localhost:9090/integers");
 
-        // Отключаем Liquibase в тестах
         registry.add("spring.liquibase.enabled", () -> false);
 
-        // Отключаем Security для тестов
         registry.add("spring.security.enabled", () -> false);
     }
 }

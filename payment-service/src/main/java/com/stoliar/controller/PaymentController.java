@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,14 +37,16 @@ public class PaymentController {
     @Operation(summary = "Create payment", description = "Create a new payment with status determined by external API")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Payment created successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
     })
     @PostMapping
-    public ResponseEntity<ApiResponse<PaymentResponse>> createPayment(@Valid @RequestBody PaymentRequest paymentRequest) {
-        log.info("Creating payment for order: {}, user: {}", 
-                paymentRequest.getOrderId(), paymentRequest.getUserId());
+    public ResponseEntity<ApiResponse<PaymentResponse>> createPayment(@Valid @RequestBody PaymentRequest paymentRequest,
+                                                                      @RequestParam(required = false) Long userId,
+                                                                      Authentication authentication) {
+        log.info("Creating payment for order: {}", paymentRequest.getOrderId());
         
-        PaymentResponse payment = paymentService.createPayment(paymentRequest);
+        PaymentResponse payment = paymentService.createPayment(paymentRequest, authentication, userId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(payment, "Payment created successfully"));
     }
@@ -50,28 +54,42 @@ public class PaymentController {
     @Operation(summary = "Get payment by ID", description = "Retrieve a specific payment by ID")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment retrieved successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Payment not found")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Payment not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
     })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(
-            @Parameter(description = "Payment ID", required = true) @PathVariable String id) {
+            @Parameter(description = "Payment ID", required = true) @PathVariable String id,
+            Authentication authentication) {
         
         log.info("Getting payment by id: {}", id);
-        PaymentResponse payment = paymentService.getPaymentById(id);
-        return ResponseEntity.ok(ApiResponse.success(payment, "Payment retrieved successfully"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getPaymentById(id, authentication),
+                        "Payment retrieved successfully"
+                )
+        );
     }
-    
+
     @Operation(summary = "Get payments by user ID", description = "Retrieve all payments for a specific user")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payments retrieved successfully")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payments retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
     })
     @GetMapping("/user/{userId}")
     public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentsByUserId(
-            @Parameter(description = "User ID", required = true) @PathVariable Long userId) {
+            @Parameter(description = "User ID", required = true) @PathVariable Long userId,
+            Authentication authentication) {
         
         log.info("Getting payments for user id: {}", userId);
-        List<PaymentResponse> payments = paymentService.getPaymentsByUserId(userId);
-        return ResponseEntity.ok(ApiResponse.success(payments, "Payments retrieved successfully"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getPaymentsByUserId(userId, authentication),
+                        "Payments retrieved successfully"
+                )
+        );
     }
     
     @Operation(summary = "Get payments by order ID", description = "Retrieve all payments for a specific order")
@@ -80,11 +98,17 @@ public class PaymentController {
     })
     @GetMapping("/order/{orderId}")
     public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentsByOrderId(
-            @Parameter(description = "Order ID", required = true) @PathVariable Long orderId) {
-        
+            @Parameter(description = "Order ID", required = true) @PathVariable Long orderId,
+            Authentication authentication) {
+
         log.info("Getting payments for order id: {}", orderId);
-        List<PaymentResponse> payments = paymentService.getPaymentsByOrderId(orderId);
-        return ResponseEntity.ok(ApiResponse.success(payments, "Payments retrieved successfully"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getPaymentsByOrderId(orderId, authentication),
+                        "Payments retrieved successfully"
+                )
+        );
     }
     
     @Operation(summary = "Get payments by status", description = "Retrieve all payments with specific status")
@@ -93,11 +117,17 @@ public class PaymentController {
     })
     @GetMapping("/status/{status}")
     public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentsByStatus(
-            @Parameter(description = "Payment status", required = true) @PathVariable PaymentStatus status) {
+            @Parameter(description = "Payment status", required = true) @PathVariable PaymentStatus status,
+            Authentication authentication) {
         
         log.info("Getting payments with status: {}", status);
-        List<PaymentResponse> payments = paymentService.getPaymentsByStatus(status);
-        return ResponseEntity.ok(ApiResponse.success(payments, "Payments retrieved successfully"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getPaymentsByStatus(status, authentication),
+                        "Payments retrieved successfully"
+                )
+        );
     }
     
     @Operation(summary = "Get payments by criteria", description = "Retrieve payments filtered by user ID, order ID, and/or status")
@@ -108,11 +138,17 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<List<PaymentResponse>>> getPaymentsByCriteria(
             @Parameter(description = "User ID") @RequestParam(required = false) Long userId,
             @Parameter(description = "Order ID") @RequestParam(required = false) Long orderId,
-            @Parameter(description = "Payment status") @RequestParam(required = false) PaymentStatus status) {
+            @Parameter(description = "Payment status") @RequestParam(required = false) PaymentStatus status,
+            Authentication authentication) {
         
         log.info("Searching payments - userId: {}, orderId: {}, status: {}", userId, orderId, status);
-        List<PaymentResponse> payments = paymentService.getPaymentsByCriteria(userId, orderId, status);
-        return ResponseEntity.ok(ApiResponse.success(payments, "Payments retrieved successfully"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getPaymentsByCriteria(userId, orderId, status, authentication),
+                        "Payments retrieved successfully"
+                )
+        );
     }
 
     @Operation(summary = "Get total sum for user", description = "Get total payment amount for a user within date range")
@@ -125,28 +161,40 @@ public class PaymentController {
             @Parameter(description = "Start date (ISO format). Example: 2026-01-28T10:00:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @Parameter(description = "End date (ISO format). Example: 2026-01-28T18:00:00")
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            Authentication authentication) {
 
         log.info("Calculating total sum for user {} from {} to {}", userId, startDate, endDate);
 
-        BigDecimal totalSum = paymentService.getTotalSumByUserIdAndDateRange(userId, startDate, endDate);
-        return ResponseEntity.ok(ApiResponse.success(totalSum, "Total sum calculated successfully"));
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getTotalSumByUserIdAndDateRange(userId, startDate, endDate, authentication),
+                        "Total calculated"
+                )
+        );
     }
 
     @Operation(summary = "Get total sum for all users", description = "Get total payment amount for all users within date range")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Total sum calculated successfully")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Total sum calculated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Access denied")
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/total")
     public ResponseEntity<ApiResponse<BigDecimal>> getTotalSum(
             @Parameter(description = "Start date (ISO format). Example: 2026-01-28T10:00:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @Parameter(description = "End date (ISO format). Example: 2026-01-28T18:00:00")
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            Authentication authentication) {
 
         log.info("Calculating total sum for all users from {} to {}", startDate, endDate);
 
-        BigDecimal totalSum = paymentService.getTotalSumByDateRange(startDate, endDate);
-        return ResponseEntity.ok(ApiResponse.success(totalSum, "Total sum calculated successfully"));
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        paymentService.getTotalSumByDateRange(startDate, endDate, authentication),
+                        "Total calculated"
+                )
+        );
     }
 }

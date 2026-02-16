@@ -30,6 +30,10 @@ external:
   api:
     url: https://www.random.org/integers
 
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+
 # Payment Service Configuration
 payment:
   service:

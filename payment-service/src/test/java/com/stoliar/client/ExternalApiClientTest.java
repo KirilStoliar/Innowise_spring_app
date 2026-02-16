@@ -2,6 +2,7 @@ package com.stoliar.client;
 
 import com.stoliar.entity.enums.PaymentStatus;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -10,6 +11,7 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
+@ActiveProfiles("test")
 class ExternalApiClientTest {
 
     @Test

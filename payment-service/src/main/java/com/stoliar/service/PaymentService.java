@@ -7,9 +7,11 @@ import com.stoliar.entity.Payment;
 import com.stoliar.entity.enums.PaymentStatus;
 import com.stoliar.mapper.PaymentMapper;
 import com.stoliar.repository.PaymentRepository;
+import com.stoliar.security.PaymentSecurity;
 import com.stoliar.service.kafka.PaymentEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,130 +29,125 @@ public class PaymentService {
     private final PaymentMapper paymentMapper;
     private final ExternalApiClient externalApiClient;
     private final PaymentEventProducer paymentEventProducer;
+    private final PaymentSecurity paymentSecurity;
 
     @Transactional
-    public PaymentResponse createPayment(PaymentRequest paymentRequest) {
-        log.info("Creating payment for orderId: {}, userId: {}",
-                paymentRequest.getOrderId(), paymentRequest.getUserId());
+    public PaymentResponse createPayment(
+            PaymentRequest paymentRequest,
+            Authentication authentication,
+            Long targetUserId
+    ) {
+        Long currentUserId = paymentSecurity.getCurrentUserId(authentication);
+        boolean isAdmin = paymentSecurity.isAdmin(authentication);
+        Long userIdToUse;
 
-        // Создаем платеж с PENDING статусом
+        if (isAdmin && targetUserId != null) {
+            userIdToUse = targetUserId;
+        } else {
+            // USER всегда платит только за себя
+            userIdToUse = currentUserId;
+        }
+
+        log.info("Creating payment: orderId={}, userId={}",
+                paymentRequest.getOrderId(), userIdToUse);
+
         Payment payment = paymentMapper.toEntity(paymentRequest);
+        payment.setUserId(userIdToUse);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setTimestamp(LocalDateTime.now());
 
-        // Определяем статус через внешний API
         PaymentStatus externalStatus = externalApiClient.determinePaymentStatus();
         payment.setStatus(externalStatus);
 
         Payment savedPayment = paymentRepository.save(payment);
 
-        log.info("Payment created with id: {}, status: {}",
-                savedPayment.getId(), savedPayment.getStatus());
-
-        // Отправляем событие в Kafka
         paymentEventProducer.sendPaymentCreatedEvent(savedPayment);
 
         return paymentMapper.toResponse(savedPayment);
     }
 
     @Transactional(readOnly = true)
-    public PaymentResponse getPaymentById(String id) {
+    public PaymentResponse getPaymentById(String id, Authentication authentication) {
         log.info("Getting payment by id: {}", id);
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+        paymentSecurity.checkPaymentAccess(payment.getId(), authentication);
         return paymentMapper.toResponse(payment);
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getPaymentsByUserId(Long userId) {
+    public List<PaymentResponse> getPaymentsByUserId(Long userId, Authentication authentication) {
         log.info("Getting payments for userId: {}", userId);
+        paymentSecurity.checkUserAccess(userId, authentication);
         return paymentRepository.findByUserId(userId).stream()
                 .map(paymentMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getPaymentsByOrderId(Long orderId) {
+    public List<PaymentResponse> getPaymentsByOrderId(Long orderId, Authentication authentication) {
         log.info("Getting payments for orderId: {}", orderId);
+        boolean isAdmin = paymentSecurity.isAdmin(authentication);
+        Long currentUserId = paymentSecurity.getCurrentUserId(authentication);
+
         return paymentRepository.findByOrderId(orderId).stream()
+                .filter(p -> isAdmin || p.getUserId().equals(currentUserId))
                 .map(paymentMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getPaymentsByStatus(PaymentStatus status) {
+    public List<PaymentResponse> getPaymentsByStatus(PaymentStatus status, Authentication authentication) {
         log.info("Getting payments with status: {}", status);
+        boolean isAdmin = paymentSecurity.isAdmin(authentication);
+        Long userId = paymentSecurity.getCurrentUserId(authentication);
+
         return paymentRepository.findByStatus(status).stream()
+                .filter(p -> isAdmin || p.getUserId().equals(userId))
                 .map(paymentMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getPaymentsByCriteria(Long userId, Long orderId, PaymentStatus status) {
+    public List<PaymentResponse> getPaymentsByCriteria(Long userId, Long orderId, PaymentStatus status,
+                                                       Authentication authentication) {
         log.info("Getting payments by criteria - userId: {}, orderId: {}, status: {}",
                 userId, orderId, status);
+        boolean isAdmin = paymentSecurity.isAdmin(authentication);
+        Long currentUserId = paymentSecurity.getCurrentUserId(authentication);
+
+        if (!isAdmin) {
+            userId = currentUserId;
+        }
+
         return paymentRepository.findPaymentsByCriteria(userId, orderId, status).stream()
                 .map(paymentMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public BigDecimal getTotalSumByUserIdAndDateRange(Long userId, LocalDateTime startDate, LocalDateTime endDate) {
+    public BigDecimal getTotalSumByUserIdAndDateRange(Long userId, LocalDateTime startDate, LocalDateTime endDate,
+                                                      Authentication authentication) {
         log.info("Getting total sum for userId: {} from {} to {}", userId, startDate, endDate);
 
-        List<Payment> userPayments = paymentRepository.findByUserId(userId);
-        log.debug("Found {} total payments for user {}", userPayments.size(), userId);
+        paymentSecurity.checkUserAccess(userId, authentication);
 
-        List<Payment> filteredPayments = userPayments.stream()
-                .filter(payment -> {
-                    LocalDateTime timestamp = payment.getTimestamp();
-                    boolean isInRange = !timestamp.isBefore(startDate) && !timestamp.isAfter(endDate);
-
-                    if (isInRange) {
-                        log.debug("Payment in range: id={}, amount={}, timestamp={}",
-                                payment.getId(), payment.getPaymentAmount(), timestamp);
-                    }
-
-                    return isInRange;
-                })
-                .collect(Collectors.toList());
-
-        log.info("Found {} payments in date range for user {}", filteredPayments.size(), userId);
-
-        BigDecimal total = filteredPayments.stream()
+        return paymentRepository.findByUserIdAndTimestampBetween(userId, startDate, endDate).stream()
                 .map(Payment::getPaymentAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        log.info("Total sum for user {}: {}", userId, total);
-        return total;
     }
 
     @Transactional(readOnly = true)
-    public BigDecimal getTotalSumByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
+    public BigDecimal getTotalSumByDateRange(LocalDateTime startDate, LocalDateTime endDate,
+                                             Authentication authentication) {
         log.info("Getting total sum for all users from {} to {}", startDate, endDate);
 
-        List<Payment> allPayments = paymentRepository.findByTimestampBetween(startDate, endDate);
-
-        if (allPayments.isEmpty()) {
-            allPayments = paymentRepository.findAll().stream()
-                    .filter(payment -> {
-                        LocalDateTime timestamp = payment.getTimestamp();
-                        return !timestamp.isBefore(startDate) && !timestamp.isAfter(endDate);
-                    })
-                    .collect(Collectors.toList());
+        if (!paymentSecurity.isAdmin(authentication)) {
+            throw new SecurityException("Admin only");
         }
 
-        log.info("Found {} payments in date range", allPayments.size());
-
-        allPayments.forEach(payment ->
-                log.debug("Payment in range: id={}, userId={}, amount={}, timestamp={}",
-                        payment.getId(), payment.getUserId(), payment.getPaymentAmount(), payment.getTimestamp()));
-
-        BigDecimal total = allPayments.stream()
+        return paymentRepository.findByTimestampBetween(startDate, endDate).stream()
                 .map(Payment::getPaymentAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        log.info("Total sum for all users: {}", total);
-        return total;
     }
 }

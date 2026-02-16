@@ -12,6 +12,8 @@ data:
         name: api-gateway
       cloud:
         gateway:
+          httpclient:
+            wiretap: true
           discovery:
             locator:
               enabled: false
