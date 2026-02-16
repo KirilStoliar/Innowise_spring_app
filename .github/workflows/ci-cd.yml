@@ -19,9 +19,6 @@ jobs:
       actions: read
       contents: read
 
-    env:
-      TESTCONTAINERS_RYUK_DISABLED: true
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,8 +33,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Verify Docker
-        run: docker version
+      - name: Setup Testcontainers Cloud
+        run: |
+          curl -fsSL https://get.testcontainers.cloud/bash | sh
+          echo "Testcontainers Cloud configured successfully"
+        env:
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       # Собираем все модули
       - name: Build all modules
@@ -52,12 +53,47 @@ jobs:
 
       - name: Run integration tests for user-service
         run: ./gradlew :user-service:integration-test
+        env:
+          USE_TESTCONTAINERS: true
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run tests for order-service
         run: ./gradlew :order-service:test --stacktrace
+        env:
+          USE_TESTCONTAINERS: true
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run unit tests for payment-service
         run: ./gradlew :payment-service:test
+        env:
+          USE_TESTCONTAINERS: true
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
+
+      - name: Setup Node.js for frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend/ui
+          npm ci
+        env:
+          CI: true
+
+      - name: Build frontend
+        run: |
+          cd frontend/ui
+          npm run build -- --configuration production
+        env:
+          CI: true
+
+      - name: Run frontend linting
+        run: |
+          cd frontend/ui
+          npm run lint
 
       - name: Build JARs for all modules
         run: ./gradlew bootJar --stacktrace
@@ -97,8 +133,11 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Set up Docker для Testcontainers
-        uses: docker/setup-buildx-action@v3
+      - name: Setup Testcontainers Cloud
+        run: |
+          curl -fsSL https://get.testcontainers.cloud/bash | sh
+        env:
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Build and generate coverage reports
         run: |
@@ -110,6 +149,7 @@ jobs:
           API_GATEWAY_INTERNAL_TOKEN: ${{ secrets.API_GATEWAY_INTERNAL_TOKEN }}
           GATEWAY_ADMIN_EMAIL: ${{ secrets.GATEWAY_ADMIN_EMAIL }}
           GATEWAY_ADMIN_PASSWORD: ${{ secrets.GATEWAY_ADMIN_PASSWORD }}
+          TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Install frontend dependencies for analysis
         run: |
