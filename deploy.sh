@@ -1,7 +1,6 @@
 minikube start
 minikube addons enable ingress
 minikube docker-env | Invoke-Expression
-
 @"
 echo "Building Docker images in Minikube..."
 docker build -t api-gateway:latest -f api-gateway/Dockerfile .
