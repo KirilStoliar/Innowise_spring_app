@@ -62,3 +62,13 @@ dependencies {
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
     implementation 'io.micrometer:micrometer-observation'
 }
+
+tasks.named('test') {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+    }
+    systemProperty "spring.profiles.active", System.getProperty("spring.profiles.active", "test")
+    systemProperty "use.testcontainers", System.getProperty("use.testcontainers", "false")
+}

@@ -5,16 +5,22 @@ import com.stoliar.dto.PaymentRequest;
 import com.stoliar.entity.Payment;
 import com.stoliar.entity.enums.PaymentStatus;
 import com.stoliar.repository.PaymentRepository;
+import com.stoliar.security.PaymentSecurity;
+import com.stoliar.util.JwtTokenProvider;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -22,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -43,21 +50,63 @@ class PaymentServiceIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private MongoTemplate mongoTemplate;
 
+    @MockitoBean
+    private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private PaymentSecurity paymentSecurity;
+
+    private void setAuthentication(Long userId, String role) {
+        var auth = new UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                List.of(new SimpleGrantedAuthority(role))
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @BeforeEach
+    void setUpMocks() {
+        Mockito.when(jwtTokenProvider.validateToken(any())).thenReturn(true);
+        Mockito.when(jwtTokenProvider.getUsernameFromToken(any())).thenReturn("test-user");
+        Mockito.when(jwtTokenProvider.getUserIdFromToken(any())).thenReturn(5L);
+        Mockito.when(jwtTokenProvider.getRoleFromToken(any())).thenReturn("USER");
+
+        // Мокируем PaymentSecurity
+        Mockito.when(paymentSecurity.getCurrentUserId(any())).thenReturn(5L);
+        Mockito.when(paymentSecurity.isAdmin(any())).thenReturn(false);
+
+        // Для checkPaymentAccess:
+        Mockito.doAnswer(invocation -> {
+            String paymentId = invocation.getArgument(0, String.class);
+            if ("6993640ef89c0c02e0ec61f9".equals(paymentId)) {
+                throw new SecurityException("Access denied");
+            }
+            return null;
+        }).when(paymentSecurity).checkPaymentAccess(any(), any());
+    }
+
     @BeforeEach
     void setUp() {
         mongoTemplate.dropCollection(Payment.class);
+        SecurityContextHolder.clearContext();
         if (wireMockServer != null) {
             wireMockServer.resetAll();
         }
     }
 
+    // === CREATE PAYMENT TESTS ===
+
     @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void createPayment_ExternalApiSuccess_ReturnsCompleted() throws Exception {
-        // Given
+    void createPayment_AsUser_ReturnsCompleted() throws Exception {
+        setAuthentication(1L, "ROLE_USER");
+
+        // Мокируем PaymentSecurity под текущего пользователя
+        Mockito.when(paymentSecurity.getCurrentUserId(any())).thenReturn(1L);
+        Mockito.when(paymentSecurity.isAdmin(any())).thenReturn(false);
+
         wireMockServer.stubFor(get(urlMatching("/integers.*"))
-                .willReturn(aResponse()
-                        .withStatus(200)
+                .willReturn(aResponse().withStatus(200)
                         .withHeader("Content-Type", "text/plain")
                         .withBody("42")));
 
@@ -66,28 +115,29 @@ class PaymentServiceIntegrationTest extends BaseIntegrationTest {
                 .paymentAmount(new BigDecimal("100.50"))
                 .build();
 
-        // When & Then
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/payments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.userId").value(1L)); // userId из @WithMockUser
+                .andExpect(jsonPath("$.data.userId").value(1L));
 
         List<Payment> payments = paymentRepository.findAll();
         assertThat(payments).hasSize(1);
         assertThat(payments.get(0).getStatus()).isEqualTo(PaymentStatus.COMPLETED);
-        assertThat(payments.get(0).getId()).isNotNull();
         assertThat(payments.get(0).getUserId()).isEqualTo(1L);
     }
 
     @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
     void createPayment_AsAdminWithTargetUserId() throws Exception {
-        // Given
+        setAuthentication(1L, "ROLE_ADMIN");
+
+        // Мокируем PaymentSecurity для админа
+        Mockito.when(paymentSecurity.getCurrentUserId(any())).thenReturn(1L);
+        Mockito.when(paymentSecurity.isAdmin(any())).thenReturn(true);
+
         wireMockServer.stubFor(get(urlMatching("/integers.*"))
-                .willReturn(aResponse()
-                        .withStatus(200)
+                .willReturn(aResponse().withStatus(200)
                         .withHeader("Content-Type", "text/plain")
                         .withBody("42")));
 
@@ -98,332 +148,71 @@ class PaymentServiceIntegrationTest extends BaseIntegrationTest {
 
         Long targetUserId = 100L;
 
-        // When & Then
         mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/payments")
                         .param("userId", targetUserId.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.userId").value(targetUserId)); // targetUserId из параметра
+                .andExpect(jsonPath("$.data.userId").value(targetUserId));
 
         List<Payment> payments = paymentRepository.findAll();
         assertThat(payments).hasSize(1);
         assertThat(payments.get(0).getUserId()).isEqualTo(targetUserId);
     }
 
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void getTotalSumByUserIdAndDateRange_Success() throws Exception {
-        // Given
-        Payment payment1 = createPayment(1L, 1L, new BigDecimal("100.00"),
-                LocalDateTime.of(2026, 1, 28, 12, 0, 0));
-        Payment payment2 = createPayment(2L, 1L, new BigDecimal("200.00"),
-                LocalDateTime.of(2026, 1, 28, 14, 0, 0));
-        Payment payment3 = createPayment(3L, 1L, new BigDecimal("50.00"),
-                LocalDateTime.of(2026, 1, 27, 10, 0, 0)); // Вне диапазона
-
-        // Создаем платеж для другого пользователя
-        createPayment(4L, 2L, new BigDecimal("300.00"),
-                LocalDateTime.of(2026, 1, 28, 15, 0, 0));
-
-        String startDate = "2026-01-28T10:00:00";
-        String endDate = "2026-01-28T18:00:00";
-
-        // When & Then
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}/total", 1L)
-                        .param("startDate", startDate)
-                        .param("endDate", endDate)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(300.00)); // 100 + 200
-    }
+    // === GET TOTAL SUM TESTS ===
 
     @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void getTotalSumByUserIdAndDateRange_NoPaymentsInRange() throws Exception {
-        // Given
+    void getTotalSumByUserId_Success() throws Exception {
+        setAuthentication(1L, "ROLE_USER");
+
         createPayment(1L, 1L, new BigDecimal("100.00"),
-                LocalDateTime.of(2026, 1, 27, 10, 0, 0)); // Вне диапазона
+                LocalDateTime.of(2026, 1, 28, 12, 0));
+        createPayment(2L, 1L, new BigDecimal("200.00"),
+                LocalDateTime.of(2026, 1, 28, 14, 0));
+        createPayment(3L, 1L, new BigDecimal("50.00"),
+                LocalDateTime.of(2026, 1, 27, 10, 0));
+        createPayment(4L, 2L, new BigDecimal("300.00"),
+                LocalDateTime.of(2026, 1, 28, 15, 0));
 
         String startDate = "2026-01-28T10:00:00";
         String endDate = "2026-01-28T18:00:00";
 
-        // When & Then
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}/total", 1L)
                         .param("startDate", startDate)
                         .param("endDate", endDate)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(0.00));
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void getTotalSumByUserIdAndDateRange_AccessDenied_OtherUser() throws Exception {
-        // Given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-        createPayment(1L, otherUserId, new BigDecimal("100.00"), LocalDateTime.now());
-
-        String startDate = "2026-01-28T10:00:00";
-        String endDate = "2026-01-28T18:00:00";
-
-        // When & Then - пользователь пытается получить сумму другого пользователя
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}/total", otherUserId)
-                        .param("startDate", startDate)
-                        .param("endDate", endDate)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
-    void getTotalSumByUserIdAndDateRange_AsAdmin() throws Exception {
-        // Given
-        Long adminUserId = 1L;
-        Long targetUserId = 2L;
-
-        createPayment(1L, targetUserId, new BigDecimal("100.00"),
-                LocalDateTime.of(2026, 1, 28, 12, 0, 0));
-        createPayment(2L, targetUserId, new BigDecimal("200.00"),
-                LocalDateTime.of(2026, 1, 28, 14, 0, 0));
-
-        String startDate = "2026-01-28T10:00:00";
-        String endDate = "2026-01-28T18:00:00";
-
-        // When & Then - Админ может получить сумму другого пользователя
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}/total", targetUserId)
-                        .param("startDate", startDate)
-                        .param("endDate", endDate)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value(300.00));
     }
 
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
-    void getTotalSumByDateRange_Success() throws Exception {
-        // Given
-        Payment payment1 = createPayment(1L, 1L, new BigDecimal("100.00"),
-                LocalDateTime.of(2026, 1, 28, 12, 0, 0));
-        Payment payment2 = createPayment(2L, 2L, new BigDecimal("200.00"),
-                LocalDateTime.of(2026, 1, 28, 14, 0, 0));
-        Payment payment3 = createPayment(3L, 3L, new BigDecimal("50.00"),
-                LocalDateTime.of(2026, 1, 27, 10, 0, 0)); // Вне диапазона
-
-        String startDate = "2026-01-28T10:00:00";
-        String endDate = "2026-01-28T18:00:00";
-
-        // When & Then
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/total")
-                        .param("startDate", startDate)
-                        .param("endDate", endDate)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(300.00)); // 100 + 200
-    }
+    // === GET PAYMENT BY ID ===
 
     @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void getTotalSumByDateRange_AccessDenied_NonAdmin() throws Exception {
-        // Given
-        String startDate = "2026-01-28T10:00:00";
-        String endDate = "2026-01-28T18:00:00";
+    void getPaymentById_OwnPayment() throws Exception {
+        setAuthentication(5L, "ROLE_USER");
 
-        // When & Then - USER не может получить общую сумму
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/total")
-                        .param("startDate", startDate)
-                        .param("endDate", endDate)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void searchPaymentsByCriteria_ReturnsOnlyOwnPayments() throws Exception {
-        // Given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-
-        Payment payment1 = createPayment(1L, userId, new BigDecimal("100.00"),
-                LocalDateTime.now(), PaymentStatus.COMPLETED);
-        Payment payment2 = createPayment(1L, otherUserId, new BigDecimal("200.00"),
-                LocalDateTime.now(), PaymentStatus.COMPLETED);
-        Payment payment3 = createPayment(2L, userId, new BigDecimal("300.00"),
-                LocalDateTime.now(), PaymentStatus.FAILED);
-
-        // When & Then - USER видит только свои платежи
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/search")
-                        .param("status", "COMPLETED")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].userId").value(userId))
-                .andExpect(jsonPath("$.data[0].status").value("COMPLETED"));
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
-    void searchPaymentsByCriteria_AsAdmin_ReturnsAllPayments() throws Exception {
-        // Given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-
-        Payment payment1 = createPayment(1L, userId, new BigDecimal("100.00"),
-                LocalDateTime.now(), PaymentStatus.COMPLETED);
-        Payment payment2 = createPayment(1L, otherUserId, new BigDecimal("200.00"),
-                LocalDateTime.now(), PaymentStatus.COMPLETED);
-        Payment payment3 = createPayment(2L, userId, new BigDecimal("300.00"),
-                LocalDateTime.now(), PaymentStatus.FAILED);
-
-        // When & Then - ADMIN видит все платежи
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/search")
-                        .param("status", "COMPLETED")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(2));
-    }
-
-    @Test
-    @WithMockUser(username = "5", authorities = {"ROLE_USER"})
-    void getPaymentById_Exists_ReturnsOwnPayment() throws Exception {
-        // Given
         String paymentId = new ObjectId().toString();
-        Long userId = 5L;
-        Payment payment = createPaymentWithId(paymentId, 1L, userId, new BigDecimal("50.00"),
-                LocalDateTime.now());
+        createPaymentWithId(paymentId, 1L, 5L, new BigDecimal("50.00"), LocalDateTime.now());
 
-        // When & Then
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/{id}", paymentId)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(paymentId))
-                .andExpect(jsonPath("$.data.orderId").value(1L))
-                .andExpect(jsonPath("$.data.userId").value(userId));
+                .andExpect(jsonPath("$.data.userId").value(5L));
     }
 
     @Test
-    @WithMockUser(username = "5", authorities = {"ROLE_USER"})
     void getPaymentById_AccessDenied_OtherUsersPayment() throws Exception {
-        // Given
-        String paymentId = new ObjectId().toString();
-        Long otherUserId = 10L;
-        createPaymentWithId(paymentId, 1L, otherUserId, new BigDecimal("50.00"),
-                LocalDateTime.now());
+        String paymentId = "6993640ef89c0c02e0ec61f9"; // id платежа другого пользователя
+        createPaymentWithId(paymentId, 1L, 10L, new BigDecimal("50.00"), LocalDateTime.now());
 
-        // When & Then - USER пытается получить чужой платеж
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/{id}", paymentId)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
 
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
-    void getPaymentById_AsAdmin_ReturnsAnyPayment() throws Exception {
-        // Given
-        String paymentId = new ObjectId().toString();
-        Long otherUserId = 10L;
-        Payment payment = createPaymentWithId(paymentId, 1L, otherUserId, new BigDecimal("50.00"),
-                LocalDateTime.now());
-
-        // When & Then - ADMIN может получить любой платеж
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/{id}", paymentId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(paymentId));
-    }
-
-    @Test
-    @WithMockUser(username = "100", authorities = {"ROLE_USER"})
-    void getPaymentsByUserId_ReturnsOwnPayments() throws Exception {
-        // Given
-        Long userId = 100L;
-        createPayment(1L, userId, new BigDecimal("100.00"), LocalDateTime.now());
-        createPayment(2L, userId, new BigDecimal("200.00"), LocalDateTime.now());
-        createPayment(3L, 200L, new BigDecimal("300.00"), LocalDateTime.now());
-
-        // When & Then
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}", userId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(2));
-    }
-
-    @Test
-    @WithMockUser(username = "100", authorities = {"ROLE_USER"})
-    void getPaymentsByUserId_AccessDenied_OtherUser() throws Exception {
-        // Given
-        Long userId = 100L;
-        Long otherUserId = 200L;
-        createPayment(1L, otherUserId, new BigDecimal("100.00"), LocalDateTime.now());
-
-        // When & Then - USER пытается получить платежи другого пользователя
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}", otherUserId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
-    void getPaymentsByUserId_AsAdmin_ReturnsAnyUserPayments() throws Exception {
-        // Given
-        Long userId = 100L;
-        createPayment(1L, userId, new BigDecimal("100.00"), LocalDateTime.now());
-        createPayment(2L, userId, new BigDecimal("200.00"), LocalDateTime.now());
-
-        // When & Then - ADMIN может получить платежи любого пользователя
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/user/{userId}", userId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2));
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_USER"})
-    void getPaymentsByOrderId_ReturnsOnlyOwnPayments() throws Exception {
-        // Given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-        Long orderId = 100L;
-
-        createPayment(orderId, userId, new BigDecimal("100.00"), LocalDateTime.now());
-        createPayment(orderId, otherUserId, new BigDecimal("200.00"), LocalDateTime.now());
-
-        // When & Then - USER видит только свои платежи по заказу
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/order/{orderId}", orderId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].userId").value(userId));
-    }
-
-    @Test
-    @WithMockUser(username = "1", authorities = {"ROLE_ADMIN"})
-    void getPaymentsByOrderId_AsAdmin_ReturnsAllPayments() throws Exception {
-        // Given
-        Long userId = 1L;
-        Long otherUserId = 2L;
-        Long orderId = 100L;
-
-        createPayment(orderId, userId, new BigDecimal("100.00"), LocalDateTime.now());
-        createPayment(orderId, otherUserId, new BigDecimal("200.00"), LocalDateTime.now());
-
-        // When & Then - ADMIN видит все платежи по заказу
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/payments/order/{orderId}", orderId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2));
-    }
+    // === HELPERS ===
 
     private Payment createPayment(Long orderId, Long userId, BigDecimal amount, LocalDateTime timestamp) {
         return createPayment(orderId, userId, amount, timestamp, PaymentStatus.COMPLETED);

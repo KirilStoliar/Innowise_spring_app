@@ -281,6 +281,7 @@ services:
       - innowise-network
     restart: unless-stopped
 
+  # Frontend (Angular)
   frontend:
     build:
       context: ./frontend/ui

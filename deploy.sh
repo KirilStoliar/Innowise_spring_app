@@ -38,6 +38,8 @@ Grafana:
 kubectl port-forward svc/grafana 3000:80 -n innowise
 Loki:
 kubectl port-forward svc/loki 3100:3100 -n innowise
+Frontend:
+kubectl port-forward svc/frontend 80:80 -n innowise
 
 Рестарт сервиса:
 kubectl rollout restart deployment api-gateway -n innowise

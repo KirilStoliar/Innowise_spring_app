@@ -4,12 +4,14 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 
 @Component
+@Profile("!test")
 public class JwtTokenProvider {
 
     @Value("${app.jwt.secret}")
@@ -49,7 +51,7 @@ public class JwtTokenProvider {
                 .getBody();
     }
 
-    private SecretKey getSigningKey() {
+    protected SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 }

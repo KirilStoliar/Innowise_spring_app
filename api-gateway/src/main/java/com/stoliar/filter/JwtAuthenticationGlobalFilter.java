@@ -23,6 +23,7 @@ import java.util.List;
 public class JwtAuthenticationGlobalFilter implements GlobalFilter, Ordered {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final int index = 7;
 
     // Пути, которые не требуют авторизации через JWT
     private final List<String> excludedPaths = List.of(
@@ -52,7 +53,7 @@ public class JwtAuthenticationGlobalFilter implements GlobalFilter, Ordered {
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
         String token = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
+            token = authHeader.substring(index);
         }
 
         // Специальная обработка для /api/v1/auth/register

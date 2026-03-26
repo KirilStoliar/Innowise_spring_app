@@ -79,14 +79,14 @@ jobs:
           TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run tests for order-service
-        run: ./gradlew :order-service:test --stacktrace
+        run: ./gradlew :order-service:test --stacktrace -Duse.testcontainers=true
         env:
           USE_TESTCONTAINERS: true
           TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
           TESTCONTAINERS_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}
 
       - name: Run unit tests for payment-service
-        run: ./gradlew :payment-service:test
+        run: ./gradlew :payment-service:test -Dspring.profiles.active=test --stacktrace
         env:
           USE_TESTCONTAINERS: true
           TC_CLOUD_TOKEN: ${{ secrets.TC_CLOUD_TOKEN }}

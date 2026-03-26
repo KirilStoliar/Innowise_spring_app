@@ -1,6 +1,7 @@
 package com.stoliar.admin;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.stoliar.util.JwtTokenProvider;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,9 @@ import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -24,15 +28,60 @@ public class AdminTokenManager {
     private final String adminEmail;
     private final String adminPassword;
     private final AtomicReference<String> adminToken = new AtomicReference<>();
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public AdminTokenManager(WebClient webClient,
                              @Value("${gateway.auth.url:http://auth-service:8081}") String authServiceUrl,
                              @Value("${gateway-admin.email}") String adminEmail,
-                             @Value("${gateway-admin.password}") String adminPassword) {
+                             @Value("${gateway-admin.password}") String adminPassword, JwtTokenProvider jwtTokenProvider) {
         this.webClient = webClient;
         this.authLoginUrl = authServiceUrl + "/api/v1/auth/login";
         this.adminEmail = adminEmail;
         this.adminPassword = adminPassword;
+        this.jwtTokenProvider = jwtTokenProvider;
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void initialize() {
+        log.info("Initializing AdminTokenManager...");
+        obtainAdminTokenOnStartup();
+        startAutoRefreshScheduler();
+    }
+
+    private void startAutoRefreshScheduler() {
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                String currentToken = adminToken.get();
+                if (currentToken != null && !jwtTokenProvider.validateToken(currentToken)) {
+                    log.info("Admin token expired, refreshing...");
+                    obtainAdminTokenOnStartup();
+                }
+            } catch (Exception e) {
+                log.error("Error in token refresh scheduler: {}", e.getMessage());
+            }
+        }, 1, 1, TimeUnit.MINUTES); // Проверка каждую минуту
+    }
+
+    public String getAdminToken() {
+        String token = adminToken.get();
+
+        // Если токен истек - пытаемся получить новый
+        if (token != null && !jwtTokenProvider.validateToken(token)) {
+            log.warn("Admin token is invalid, attempting refresh...");
+            try {
+                String newToken = obtainAdminTokenReactive().block(Duration.ofSeconds(10));
+                if (newToken != null && jwtTokenProvider.validateToken(newToken)) {
+                    adminToken.set(newToken);
+                    return newToken;
+                }
+            } catch (Exception e) {
+                log.error("Failed to refresh admin token: {}", e.getMessage());
+            }
+        }
+
+        return token;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -115,10 +164,6 @@ public class AdminTokenManager {
                             .subscribe();
                 })
                 .subscribe();
-    }
-
-    public String getAdminToken() {
-        return adminToken.get();
     }
 
     public boolean isTokenAvailable() {
