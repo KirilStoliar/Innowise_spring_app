@@ -1,13 +1,13 @@
-# Innowise Trainee Spring — Microservices Platform
+# Innowise Spring App — Microservices Platform
 
-Микросервисное приложение на **Spring Boot 3.5.7** и **Java 21**, реализованное в рамках *trainee‑проекта*. Проект демонстрирует построение микросервисной архитектуры с API Gateway, централизованной безопасностью, асинхронным взаимодействием, CI/CD, контейнеризацией и Kubernetes, а также запуском мониторинга и тестированием сервисов.
+Микросервисное приложение на **Spring Boot 3.5.7** и **Java 21**, которое демонстрирует построение микросервисной архитектуры с API Gateway, централизованной безопасностью, асинхронным взаимодействием, CI/CD, контейнеризацией и Kubernetes, а также запуском мониторинга и тестированием сервисов.
 
 ---
 
 ## Структура проекта
 
 ```text
-Innowise-trainee-spring
+Innowise-spring-app
 ├── .github/../ci-cd.yml      # GitHub Actions workflow
 ├── api-gateway/              # API Gateway (Spring Cloud Gateway)
 ├── auth-service/             # Аутентификация и авторизация (JWT)
@@ -271,4 +271,4 @@ kubectl apply -k k8s/
 ## Автор
 
 **Кирилл Столяр**
-Java Backend Developer (Trainee)
+Java Backend Junior Developer
